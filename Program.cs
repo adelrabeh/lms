@@ -41,15 +41,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Create tables
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     try
     {
         db.Database.EnsureCreated();
-        
-        // Seed departments if empty
         if (!db.Departments.Any())
         {
             db.Departments.AddRange(
@@ -72,6 +69,26 @@ app.UseSwaggerUI();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
+
 app.MapGet("/health", () => new { status = "ok", time = DateTime.UtcNow });
+
+app.MapGet("/dbtest", async (AppDbContext db) => {
+    try {
+        var canConnect = await db.Database.CanConnectAsync();
+        db.Database.EnsureCreated();
+        var depts = db.Departments.Count();
+        var conn = db.Database.GetConnectionString() ?? "";
+        return Results.Ok(new { 
+            canConnect, 
+            depts, 
+            host = conn.Length > 40 ? conn.Substring(0, 40) : conn
+        });
+    } catch (Exception ex) {
+        return Results.Ok(new { 
+            error = ex.Message, 
+            inner = ex.InnerException?.Message ?? "none"
+        });
+    }
+});
 
 app.Run();
