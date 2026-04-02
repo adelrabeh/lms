@@ -90,18 +90,29 @@ namespace LicenseManagement.API.Services
 
         public async Task<LicenseDto> CreateAsync(CreateLicenseDto dto)
         {
-            var expiry = dto.StartDate
-                .AddYears(dto.DurationYears)
-                .AddMonths(dto.DurationMonths);
+            // Parse startDate as UTC
+            var startDate = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
+            var expiry = startDate.AddYears(dto.DurationYears).AddMonths(dto.DurationMonths);
 
             var license = new License
             {
-                Name = dto.Name, Description = dto.Description, Type = dto.Type,
-                LicenseModel = dto.LicenseModel, Seats = dto.Seats, AnnualCost = dto.AnnualCost,
-                ComplianceStandard = dto.ComplianceStandard, LicenseKey = dto.LicenseKey,
-                InternalNotes = dto.InternalNotes, StartDate = dto.StartDate, ExpiryDate = expiry,
-                RenewalMode = dto.RenewalMode, AlertDaysBefore = dto.AlertDaysBefore,
-                VendorId = dto.VendorId, DepartmentId = dto.DepartmentId
+                Name = dto.Name,
+                Description = dto.Description,
+                Type = dto.Type,
+                LicenseModel = dto.LicenseModel,
+                Seats = dto.Seats,
+                AnnualCost = dto.AnnualCost,
+                ComplianceStandard = dto.ComplianceStandard,
+                LicenseKey = dto.LicenseKey,
+                InternalNotes = dto.InternalNotes,
+                StartDate = startDate,
+                ExpiryDate = expiry,
+                RenewalMode = dto.RenewalMode,
+                AlertDaysBefore = dto.AlertDaysBefore,
+                VendorId = dto.VendorId,
+                DepartmentId = dto.DepartmentId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             _db.Licenses.Add(license);
@@ -110,7 +121,8 @@ namespace LicenseManagement.API.Services
             foreach (var empId in dto.EmployeeIds)
                 _db.LicenseAssignments.Add(new LicenseAssignment
                 {
-                    LicenseId = license.Id, EmployeeId = empId,
+                    LicenseId = license.Id,
+                    EmployeeId = empId,
                     IsPrimaryOwner = dto.EmployeeIds.IndexOf(empId) == 0
                 });
 
@@ -123,18 +135,18 @@ namespace LicenseManagement.API.Services
             var license = await _db.Licenses.FindAsync(id);
             if (license == null) return null;
 
+            var startDate = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
             license.Name = dto.Name; license.Description = dto.Description;
             license.Type = dto.Type; license.LicenseModel = dto.LicenseModel;
             license.Seats = dto.Seats; license.AnnualCost = dto.AnnualCost;
             license.ComplianceStandard = dto.ComplianceStandard;
             license.LicenseKey = dto.LicenseKey; license.InternalNotes = dto.InternalNotes;
-            license.StartDate = dto.StartDate;
-            license.ExpiryDate = dto.StartDate.AddYears(dto.DurationYears).AddMonths(dto.DurationMonths);
+            license.StartDate = startDate;
+            license.ExpiryDate = startDate.AddYears(dto.DurationYears).AddMonths(dto.DurationMonths);
             license.RenewalMode = dto.RenewalMode; license.AlertDaysBefore = dto.AlertDaysBefore;
             license.VendorId = dto.VendorId; license.DepartmentId = dto.DepartmentId;
             license.IsActive = dto.IsActive; license.UpdatedAt = DateTime.UtcNow;
 
-            // Update assignments
             var existing = _db.LicenseAssignments.Where(a => a.LicenseId == id);
             _db.LicenseAssignments.RemoveRange(existing);
             foreach (var empId in dto.EmployeeIds)
@@ -153,6 +165,7 @@ namespace LicenseManagement.API.Services
             var l = await _db.Licenses.FindAsync(id);
             if (l == null) return false;
             l.IsActive = false;
+            l.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             return true;
         }
