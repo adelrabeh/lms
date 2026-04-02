@@ -17,28 +17,24 @@ namespace LicenseManagement.API.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // License → Vendor (optional)
             modelBuilder.Entity<License>()
                 .HasOne(l => l.Vendor)
                 .WithMany(v => v.Licenses)
                 .HasForeignKey(l => l.VendorId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // License → Department (optional)
             modelBuilder.Entity<License>()
                 .HasOne(l => l.Department)
                 .WithMany(d => d.Licenses)
                 .HasForeignKey(l => l.DepartmentId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Employee → Department
             modelBuilder.Entity<Employee>()
                 .HasOne(e => e.Department)
                 .WithMany(d => d.Employees)
                 .HasForeignKey(e => e.DepartmentId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // LicenseAssignment composite
             modelBuilder.Entity<LicenseAssignment>()
                 .HasOne(a => a.License)
                 .WithMany(l => l.Assignments)
