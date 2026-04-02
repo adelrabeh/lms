@@ -3,7 +3,6 @@ using LicenseManagement.API.Data;
 using LicenseManagement.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -11,12 +10,10 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "License Management API", Version = "v1" });
 });
 
-// Read DATABASE_URL directly (Railway injects this automatically)
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DATABASE_URL not found.");
 
-// Convert postgresql:// URL to Npgsql format
 string connStr;
 if (databaseUrl.StartsWith("postgresql://") || databaseUrl.StartsWith("postgres://"))
 {
@@ -44,10 +41,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Create tables if they don't exist (no migrations needed)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    db.Database.EnsureCreated();
 }
 
 app.UseSwagger();
