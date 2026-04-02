@@ -11,32 +11,39 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "License Management API", Version = "v1" });
 });
 
-// PostgreSQL
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-    )
-);
+// Read DATABASE_URL directly (Railway injects this automatically)
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("DATABASE_URL not found.");
 
+// Convert postgresql:// URL to Npgsql format
+string connStr;
+if (databaseUrl.StartsWith("postgresql://") || databaseUrl.StartsWith("postgres://"))
+{
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    connStr = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={Uri.UnescapeDataString(userInfo[1])};SSL Mode=Require;Trust Server Certificate=true";
+}
+else
+{
+    connStr = databaseUrl;
+}
+
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr));
 builder.Services.AddScoped<ILicenseService, LicenseService>();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:3000",
-                builder.Configuration["Frontend:Url"] ?? "*"
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod()
+            .WithOrigins("http://localhost:5173", "http://localhost:3000",
+                Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "*")
+            .AllowAnyHeader().AllowAnyMethod()
     );
 });
 
 var app = builder.Build();
 
-// Auto-migrate on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -45,7 +52,6 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
