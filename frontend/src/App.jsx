@@ -265,18 +265,7 @@ export default function App() {
         {/* Brand */}
         <div style={{ padding: '18px 16px 16px', borderBottom: `1px solid ${C.ink3}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Darah emblem */}
-            <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-              <rect width="100" height="100" rx="4" fill={C.gold}/>
-              <path d="M50 16 L50 80" stroke="white" strokeWidth="4" strokeLinecap="round"/>
-              <path d="M50 28 Q42 20 34 14" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none"/>
-              <path d="M50 28 Q58 20 66 14" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none"/>
-              <path d="M50 40 Q39 33 28 28" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <path d="M50 40 Q61 33 72 28" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <path d="M50 52 Q36 46 24 44" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
-              <path d="M50 52 Q64 46 76 44" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
-              <line x1="28" y1="82" x2="72" y2="82" stroke="white" strokeWidth="4" strokeLinecap="round"/>
-            </svg>
+            <DarahLogo size={44} />
             <div>
               <div style={{ fontSize: 11, fontFamily: font, fontWeight: 700, color: '#FAF6F0', lineHeight: 1.4 }}>{t('org')}</div>
               <div style={{ fontSize: 8, color: '#8BAF97', letterSpacing: 1, marginTop: 2, fontFamily: sans, textTransform: 'uppercase' }}>نظام إدارة الرخص</div>
