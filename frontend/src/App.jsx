@@ -198,6 +198,7 @@ export default function App() {
   const [filterType, setFilterType] = useState('all')
   const [editingId, setEditingId] = useState(null)
   const [renewingLicense, setRenewingLicense] = useState(null)
+  const [editingLicense, setEditingLicense] = useState(null)
   const t = k => T[lang][k] || k
   const isRtl = lang === 'ar'
   const qc = useQueryClient()
@@ -217,7 +218,20 @@ export default function App() {
   const updateMut = useMutation({ mutationFn: ({ id, data }) => updateLicense(id, data), onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setEditingId(null); setRenewingLicense(null) } })
   const deleteMut = useMutation({ mutationFn: deleteLicense, onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']) } })
 
-  const handleEdit = (l) => { setEditingId(l.id); setRenewingLicense(null); setPanelOpen(true) }
+  const handleEdit = async (l) => {
+    setEditingId(l.id)
+    setRenewingLicense(null)
+    setEditingLicense(null)
+    // جلب البيانات الكاملة للرخصة
+    try {
+      const { getLicense } = await import('./services/api')
+      const full = await getLicense(l.id)
+      setEditingLicense(full)
+    } catch {
+      setEditingLicense(l)
+    }
+    setPanelOpen(true)
+  }
   const handleRenew = (l) => { setEditingId(null); setRenewingLicense(l); setPanelOpen(true) }
 
   const critical = (dashboard?.criticalLicenses || expiring).slice(0, 6)
@@ -753,8 +767,8 @@ export default function App() {
         <AddLicensePanel
           lang={lang} isRtl={isRtl} t={t}
           vendors={vendors} departments={departments} employees={employees}
-          editingId={editingId} renewingLicense={renewingLicense}
-          onClose={() => { setPanelOpen(false); setEditingId(null); setRenewingLicense(null) }}
+          editingId={editingId} renewingLicense={renewingLicense} editingLicense={editingLicense}
+          onClose={() => { setPanelOpen(false); setEditingId(null); setRenewingLicense(null); setEditingLicense(null) }}
           onSave={data => editingId ? updateMut.mutate({ id: editingId, data }) : createMut.mutate(data)}
           saving={createMut.isPending || updateMut.isPending}
         />
@@ -764,8 +778,16 @@ export default function App() {
 }
 
 /* ─── ADD LICENSE PANEL ──────────────────────────────────────── */
-function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, editingId, renewingLicense, onClose, onSave, saving }) {
+function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, editingId, renewingLicense, onClose, onSave, saving, editingLicense }) {
   const isRenewing = !!renewingLicense
+  const isEditing = !!editingId
+
+  const emptyForm = {
+    name: '', description: '', type: 'Software', licenseModel: 'Per User',
+    seats: 1, annualCost: 0, complianceStandard: '', licenseKey: '', internalNotes: '',
+    startDate: new Date().toISOString().split('T')[0], durationYears: 1, durationMonths: 0,
+    renewalMode: 'Manual', alertDaysBefore: 30, vendorId: '', departmentId: '', employeeIds: []
+  }
 
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => {
@@ -779,17 +801,47 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, edit
         startDate: new Date().toISOString().split('T')[0],
         durationYears: 1, durationMonths: 0,
         renewalMode: renewingLicense.renewalMode || 'Manual', alertDaysBefore: renewingLicense.alertDaysBefore || 30,
-        vendorId: renewingLicense.vendor?.id || '', departmentId: renewingLicense.department?.id || '', employeeIds: []
+        vendorId: renewingLicense.vendor?.id ? String(renewingLicense.vendor.id) : '',
+        departmentId: renewingLicense.department?.id ? String(renewingLicense.department.id) : '',
+        employeeIds: []
       }
     }
-    return {
-      name: '', description: '', type: 'Software', licenseModel: 'Per User',
-      seats: 1, annualCost: 0, complianceStandard: '', licenseKey: '', internalNotes: '',
-      startDate: new Date().toISOString().split('T')[0], durationYears: 1, durationMonths: 0,
-      renewalMode: 'Manual', alertDaysBefore: 30, vendorId: '', departmentId: '', employeeIds: []
+    if (editingLicense) {
+      const exp = editingLicense.expiryDate ? new Date(editingLicense.expiryDate) : null
+      const start = editingLicense.startDate ? new Date(editingLicense.startDate) : new Date()
+      let durationYears = 1, durationMonths = 0
+      if (exp && start) {
+        const diffMs = exp - start
+        const diffDays = diffMs / (1000 * 60 * 60 * 24)
+        durationYears = Math.floor(diffDays / 365)
+        durationMonths = Math.round((diffDays % 365) / 30)
+      }
+      return {
+        name: editingLicense.name || '',
+        description: editingLicense.description || '',
+        type: editingLicense.type || 'Software',
+        licenseModel: editingLicense.licenseModel || 'Per User',
+        seats: editingLicense.seats || 1,
+        annualCost: editingLicense.annualCost || 0,
+        complianceStandard: editingLicense.complianceStandard || '',
+        licenseKey: editingLicense.licenseKey || '',
+        internalNotes: editingLicense.internalNotes || '',
+        startDate: editingLicense.startDate ? editingLicense.startDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        durationYears,
+        durationMonths,
+        renewalMode: editingLicense.renewalMode || 'Manual',
+        alertDaysBefore: editingLicense.alertDaysBefore || 30,
+        vendorId: editingLicense.vendor?.id ? String(editingLicense.vendor.id) : '',
+        departmentId: editingLicense.department?.id ? String(editingLicense.department.id) : '',
+        employeeIds: editingLicense.owners?.map(o => o.id) || []
+      }
     }
+    return emptyForm
   })
-  const [assigned, setAssigned] = useState(isRenewing && renewingLicense.owners ? renewingLicense.owners : [])
+  const [assigned, setAssigned] = useState(
+    isRenewing && renewingLicense.owners ? renewingLicense.owners :
+    editingLicense?.owners ? editingLicense.owners : []
+  )
 
   const STEPS = 5
   const labels = isRtl
