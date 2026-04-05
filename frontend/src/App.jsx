@@ -72,6 +72,7 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [editingId, setEditingId] = useState(null)
+  const [renewingLicense, setRenewingLicense] = useState(null)
   const t = k => T[lang][k] || k
   const isRtl = lang === 'ar'
   const qc = useQueryClient()
@@ -98,11 +99,11 @@ export default function App() {
   // Mutations
   const createMut = useMutation({
     mutationFn: createLicense,
-    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false) }
+    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setRenewingLicense(null) }
   })
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => updateLicense(id, data),
-    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setEditingId(null) }
+    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setEditingId(null); setRenewingLicense(null) }
   })
   const deleteMut = useMutation({
     mutationFn: deleteLicense,
@@ -111,12 +112,25 @@ export default function App() {
 
   const criticalLicenses = dashboard?.criticalLicenses || expiring.slice(0, 8)
 
+  // فتح نموذج التعديل
+  const handleEdit = (license) => {
+    setEditingId(license.id)
+    setRenewingLicense(null)
+    setPanelOpen(true)
+  }
+
+  // فتح نموذج التجديد — يفتح نموذج إضافة جديد مع بيانات الرخصة القديمة
+  const handleRenew = (license) => {
+    setEditingId(null)
+    setRenewingLicense(license)
+    setPanelOpen(true)
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'system-ui, sans-serif', background: 'var(--color-background-tertiary, #f5f5f0)' }}>
 
       {/* ── Sidebar ── */}
       <aside style={{ width: 210, flexShrink: 0, borderInlineEnd: '.5px solid #e0ddd4', background: '#faf9f5', display: 'flex', flexDirection: 'column', padding: '12px 0', overflowY: 'auto' }}>
-        {/* Logo */}
         <div style={{ padding: '6px 12px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 28, height: 28, background: '#BA7517', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
@@ -127,7 +141,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Lang toggle */}
         <div style={{ display: 'flex', margin: '0 8px 8px', background: '#ededea', borderRadius: 6, padding: 2, gap: 2 }}>
           {['ar', 'en'].map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
@@ -141,9 +154,8 @@ export default function App() {
 
         <div style={{ height: .5, background: '#e0ddd4', margin: '0 10px 8px' }} />
 
-        {/* Add button */}
         <div style={{ padding: '0 8px 8px' }}>
-          <button onClick={() => { setPanelOpen(true); setEditingId(null) }} style={{
+          <button onClick={() => { setPanelOpen(true); setEditingId(null); setRenewingLicense(null) }} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px',
             borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '.5px solid #FAC775',
             background: '#FAEEDA', color: '#BA7517', fontWeight: 500
@@ -155,7 +167,6 @@ export default function App() {
 
         <div style={{ height: .5, background: '#e0ddd4', margin: '0 10px 8px' }} />
 
-        {/* Nav */}
         {[
           { id: 'dashboard', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z', label: t('dashboard') },
           { id: 'licenses', icon: 'M9 12h6M9 16h6M9 8h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z', label: t('registry'), badge: licenses.length || '' },
@@ -183,7 +194,6 @@ export default function App() {
 
       {/* ── Content ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Topbar */}
         <div style={{ height: 46, borderBottom: '.5px solid #e0ddd4', display: 'flex', alignItems: 'center', padding: '0 16px', background: 'white' }}>
           <div style={{ fontSize: 13, fontWeight: 500 }}>
             {t(view === 'dashboard' ? 'dashboard' : view === 'licenses' ? 'registry' : view === 'alerts' ? 'alerts' : view === 'compliance' ? 'compliance' : 'reports')}
@@ -192,13 +202,11 @@ export default function App() {
           {dashLoading && <span style={{ fontSize: 10, color: '#aaa' }}>{t('loading')}</span>}
         </div>
 
-        {/* Main content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
 
           {/* ── Dashboard ── */}
           {view === 'dashboard' && (
             <>
-              {/* Alert bar */}
               {expiring.filter(l => l.daysRemaining < 30).length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 11px', background: '#FCEBEB', border: '.5px solid #F7C1C1', borderRadius: 6, marginBottom: 12, fontSize: 10, color: '#A32D2D' }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -207,7 +215,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 9, marginBottom: 14 }}>
                 {[
                   { label: t('stat1'), value: dashboard?.totalLicenses || 0, sub: isRtl ? 'عبر الأقسام' : 'Across depts' },
@@ -223,12 +230,11 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Critical licenses table */}
               <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 9 }}>
                 {isRtl ? 'الرخص الحرجة' : 'Critical Licenses'}
                 <span style={{ fontSize: 9, color: '#aaa', background: '#f1efe8', padding: '1px 6px', borderRadius: 8, marginInlineStart: 6 }}>{criticalLicenses.length}</span>
               </div>
-              <LicenseTable licenses={criticalLicenses} lang={lang} t={t} isRtl={isRtl} onEdit={l => { setEditingId(l.id); setPanelOpen(true) }} onDelete={id => deleteMut.mutate(id)} compact />
+              <LicenseTable licenses={criticalLicenses} lang={lang} t={t} isRtl={isRtl} onEdit={handleEdit} onRenew={handleRenew} onDelete={id => deleteMut.mutate(id)} compact />
             </>
           )}
 
@@ -255,7 +261,7 @@ export default function App() {
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search')} style={{ border: '.5px solid #e0ddd4', borderRadius: 4, padding: '4px 8px', fontSize: 10, background: 'white', outline: 'none', width: 220, direction: isRtl ? 'rtl' : 'ltr' }} />
                 </div>
                 {licLoading ? <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: '#aaa' }}>{t('loading')}</div> :
-                  <LicenseTable licenses={licenses} lang={lang} t={t} isRtl={isRtl} onEdit={l => { setEditingId(l.id); setPanelOpen(true) }} onDelete={id => deleteMut.mutate(id)} />}
+                  <LicenseTable licenses={licenses} lang={lang} t={t} isRtl={isRtl} onEdit={handleEdit} onRenew={handleRenew} onDelete={id => deleteMut.mutate(id)} />}
               </div>
             </>
           )}
@@ -278,7 +284,7 @@ export default function App() {
                       <div style={{ fontSize: 16, fontWeight: 500, color: col }}>{d < 0 ? (isRtl ? 'منتهية' : 'Exp.') : d}</div>
                       {d >= 0 && <div style={{ fontSize: 8, color: '#aaa' }}>{t('days')}</div>}
                     </div>
-                    <button onClick={() => { setEditingId(l.id); setPanelOpen(true) }} style={{ padding: '3px 8px', border: `.5px solid ${col}`, borderRadius: 4, background: 'transparent', fontSize: 9, cursor: 'pointer', color: col }}>{t('renew')}</button>
+                    <button onClick={() => handleRenew(l)} style={{ padding: '3px 8px', border: `.5px solid ${col}`, borderRadius: 4, background: bg, fontSize: 9, cursor: 'pointer', color: col, fontWeight: 500 }}>{t('renew')}</button>
                   </div>
                 )
               })}
@@ -302,7 +308,7 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <LicenseTable licenses={licenses.length ? licenses : criticalLicenses} lang={lang} t={t} isRtl={isRtl} onEdit={l => { setEditingId(l.id); setPanelOpen(true) }} onDelete={id => deleteMut.mutate(id)} showCompliance />
+              <LicenseTable licenses={licenses.length ? licenses : criticalLicenses} lang={lang} t={t} isRtl={isRtl} onEdit={handleEdit} onRenew={handleRenew} onDelete={id => deleteMut.mutate(id)} showCompliance />
             </>
           )}
 
@@ -318,7 +324,7 @@ export default function App() {
                   { title: isRtl ? 'تقرير الاستخدام' : 'Usage Report', sub: isRtl ? 'ربط الرخص بالموظفين' : 'License assignments', bg: '#F1EFE8', ic: '#5F5E5A' },
                   { title: isRtl ? 'تقرير التدقيق' : 'Audit Report', sub: isRtl ? 'سجل كامل للتعديلات' : 'Complete audit trail', bg: '#F3F0FF', ic: '#534AB7' },
                 ].map((r, i) => (
-                  <div key={i} onClick={() => alert(isRtl ? 'جارٍ إنشاء التقرير...' : 'Generating report...')} style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, padding: 14, cursor: 'pointer', transition: 'border-color .15s' }}>
+                  <div key={i} onClick={() => alert(isRtl ? 'جارٍ إنشاء التقرير...' : 'Generating report...')} style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, padding: 14, cursor: 'pointer' }}>
                     <div style={{ width: 30, height: 30, borderRadius: 7, background: r.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={r.ic} strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77"/></svg>
                     </div>
@@ -328,8 +334,7 @@ export default function App() {
                   </div>
                 ))}
               </div>
-
-              <div style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+              <div style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, padding: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 8 }}>{isRtl ? 'تصدير البيانات' : 'Export Data'}</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {['Excel (.xlsx)', 'CSV', 'PDF', 'JSON (API)'].map(fmt => (
@@ -345,12 +350,14 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Add / Edit Panel ── */}
+      {/* ── Add / Edit / Renew Panel ── */}
       {panelOpen && (
         <AddLicensePanel
           lang={lang} isRtl={isRtl} t={t}
           vendors={vendors} departments={departments} employees={employees}
-          onClose={() => { setPanelOpen(false); setEditingId(null) }}
+          editingId={editingId}
+          renewingLicense={renewingLicense}
+          onClose={() => { setPanelOpen(false); setEditingId(null); setRenewingLicense(null) }}
           onSave={data => editingId ? updateMut.mutate({ id: editingId, data }) : createMut.mutate(data)}
           saving={createMut.isPending || updateMut.isPending}
         />
@@ -360,7 +367,7 @@ export default function App() {
 }
 
 // ── License Table Component ──────────────────────
-function LicenseTable({ licenses, t, isRtl, onEdit, onDelete, compact, showCompliance }) {
+function LicenseTable({ licenses, t, isRtl, onEdit, onRenew, onDelete, compact, showCompliance }) {
   if (!licenses?.length) return <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: '#aaa' }}>{t('noData')}</div>
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -400,7 +407,7 @@ function LicenseTable({ licenses, t, isRtl, onEdit, onDelete, compact, showCompl
                 <td style={{ padding: '8px 10px' }}>
                   <div style={{ display: 'flex', gap: 3 }}>
                     <button onClick={() => onEdit(l)} style={{ padding: '2px 6px', border: '.5px solid #e0ddd4', borderRadius: 3, background: 'transparent', fontSize: 9, cursor: 'pointer', color: '#666' }}>{t('edit')}</button>
-                    <button onClick={() => onEdit(l)} style={{ padding: '2px 6px', border: '.5px solid #e0ddd4', borderRadius: 3, background: 'transparent', fontSize: 9, cursor: 'pointer', color: '#BA7517' }}>{t('renew')}</button>
+                    <button onClick={() => onRenew(l)} style={{ padding: '2px 6px', border: '.5px solid #FAC775', borderRadius: 3, background: '#FAEEDA', fontSize: 9, cursor: 'pointer', color: '#BA7517', fontWeight: 500 }}>{t('renew')}</button>
                   </div>
                 </td>
               </tr>
@@ -413,16 +420,48 @@ function LicenseTable({ licenses, t, isRtl, onEdit, onDelete, compact, showCompl
 }
 
 // ── Add License Panel (Wizard) ───────────────────
-function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, onClose, onSave, saving }) {
+function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, editingId, renewingLicense, onClose, onSave, saving }) {
+  const isRenewing = !!renewingLicense
+  const isEditing = !!editingId
+
   const [step, setStep] = useState(0)
-  const [form, setForm] = useState({
-    name: '', description: '', type: 'sw', licenseModel: 'Per User',
-    seats: 1, annualCost: 0, complianceStandard: '', licenseKey: '', internalNotes: '',
-    startDate: new Date().toISOString().split('T')[0], durationYears: 1, durationMonths: 0,
-    renewalMode: 'Manual', alertDaysBefore: 30,
-    vendorId: '', departmentId: '', employeeIds: []
+  const [form, setForm] = useState(() => {
+    if (isRenewing) {
+      // تجديد: نسخ بيانات الرخصة القديمة مع تاريخ بداية جديد
+      const today = new Date().toISOString().split('T')[0]
+      return {
+        name: renewingLicense.name,
+        description: renewingLicense.description || '',
+        type: renewingLicense.type || 'sw',
+        licenseModel: renewingLicense.licenseModel || 'Per User',
+        seats: renewingLicense.seats || 1,
+        annualCost: renewingLicense.annualCost || 0,
+        complianceStandard: renewingLicense.complianceStandard || '',
+        licenseKey: '',
+        internalNotes: renewingLicense.internalNotes || '',
+        startDate: today,
+        durationYears: 1,
+        durationMonths: 0,
+        renewalMode: renewingLicense.renewalMode || 'Manual',
+        alertDaysBefore: renewingLicense.alertDaysBefore || 30,
+        vendorId: renewingLicense.vendor?.id || '',
+        departmentId: renewingLicense.department?.id || '',
+        employeeIds: []
+      }
+    }
+    return {
+      name: '', description: '', type: 'sw', licenseModel: 'Per User',
+      seats: 1, annualCost: 0, complianceStandard: '', licenseKey: '', internalNotes: '',
+      startDate: new Date().toISOString().split('T')[0], durationYears: 1, durationMonths: 0,
+      renewalMode: 'Manual', alertDaysBefore: 30,
+      vendorId: '', departmentId: '', employeeIds: []
+    }
   })
-  const [assigned, setAssigned] = useState([])
+
+  const [assigned, setAssigned] = useState(
+    isRenewing && renewingLicense.owners ? renewingLicense.owners.map(o => ({ id: o.id, nameAr: o.nameAr, nameEn: o.nameEn, roleAr: o.roleAr, roleEn: o.roleEn })) : []
+  )
+
   const STEPS = 5
   const labels = isRtl
     ? ['تفاصيل الرخصة', 'المدة والتواريخ', 'بيانات المورّد', 'الإدارة والمسؤول', 'المراجعة والحفظ']
@@ -432,8 +471,8 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, onCl
   const expiryDate = (() => {
     try {
       const d = new Date(form.startDate)
-      d.setFullYear(d.getFullYear() + form.durationYears)
-      d.setMonth(d.getMonth() + form.durationMonths)
+      d.setFullYear(d.getFullYear() + Number(form.durationYears))
+      d.setMonth(d.getMonth() + Number(form.durationMonths))
       return d
     } catch { return null }
   })()
@@ -459,19 +498,35 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, onCl
     </div>
   )
 
+  const panelTitle = isRenewing
+    ? (isRtl ? `تجديد رخصة: ${renewingLicense.name}` : `Renew: ${renewingLicense.name}`)
+    : isEditing
+      ? (isRtl ? 'تعديل الرخصة' : 'Edit License')
+      : (isRtl ? 'إضافة رخصة جديدة' : 'Add New License')
+
   return (
     <div style={{ width: 360, flexShrink: 0, borderInlineStart: '.5px solid #e0ddd4', background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Steps header */}
-      <div style={{ padding: '11px 13px', borderBottom: '.5px solid #e0ddd4', background: '#faf9f5', flexShrink: 0 }}>
+      <div style={{ padding: '11px 13px', borderBottom: '.5px solid #e0ddd4', background: isRenewing ? '#FAEEDA' : '#faf9f5', flexShrink: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-          {isRtl ? 'إضافة رخصة جديدة' : 'Add New License'}
-          <button onClick={onClose} style={{ marginInlineStart: 'auto', width: 20, height: 20, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#aaa' }}>×</button>
+          {isRenewing
+            ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+          }
+          <span style={{ flex: 1, fontSize: isRenewing ? 10 : 11 }}>{panelTitle}</span>
+          <button onClick={onClose} style={{ width: 20, height: 20, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#aaa' }}>×</button>
         </div>
+
+        {isRenewing && (
+          <div style={{ fontSize: 9, color: '#BA7517', background: '#FFF3DC', border: '.5px solid #FAC775', borderRadius: 4, padding: '4px 8px', marginBottom: 8 }}>
+            {isRtl ? '⟳ سيتم إنشاء رخصة جديدة بنفس البيانات مع تاريخ بداية محدّث' : '⟳ A new license will be created with the same details and a new start date'}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'flex-start' }}>
           {labels.map((lbl, i) => (
-            <>
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, cursor: i <= step ? 'pointer' : 'default' }} onClick={() => i <= step && setStep(i)}>
+            <div key={i} style={{ display: 'contents' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, cursor: i <= step ? 'pointer' : 'default' }} onClick={() => i <= step && setStep(i)}>
                 <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 500, border: '.5px solid', zIndex: 2, position: 'relative',
                   background: i < step ? '#3B6D11' : i === step ? '#BA7517' : 'white',
                   borderColor: i < step ? '#3B6D11' : i === step ? '#BA7517' : '#ddd',
@@ -483,7 +538,7 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, onCl
                 <div style={{ fontSize: 8, marginTop: 2, textAlign: 'center', color: i === step ? '#BA7517' : i < step ? '#3B6D11' : '#aaa', fontWeight: i === step ? 500 : 400 }}>{lbl}</div>
               </div>
               {i < STEPS - 1 && <div style={{ flex: 1, height: .5, background: i < step ? '#3B6D11' : '#ddd', position: 'relative', top: 12, zIndex: 1 }} />}
-            </>
+            </div>
           ))}
         </div>
       </div>
@@ -520,7 +575,7 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, onCl
             <div style={{ background: daysLeft > 90 ? '#EAF3DE' : daysLeft >= 0 ? '#FAEEDA' : '#FCEBEB', border: `.5px solid ${daysLeft > 90 ? '#C0DD97' : daysLeft >= 0 ? '#FAC775' : '#F7C1C1'}`, borderRadius: 6, padding: '9px 11px', marginBottom: 9 }}>
               <div style={{ fontSize: 9, fontWeight: 500, color: daysLeft > 90 ? '#3B6D11' : daysLeft >= 0 ? '#BA7517' : '#A32D2D', marginBottom: 2 }}>{isRtl ? 'تاريخ الانتهاء المحسوب' : 'Calculated Expiry'}</div>
               <div style={{ fontSize: 14, fontWeight: 500, color: daysLeft > 90 ? '#3B6D11' : daysLeft >= 0 ? '#BA7517' : '#A32D2D' }}>{expiryDate.toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-              <div style={{ fontSize: 9, color: '#888', marginTop: 2 }}>{form.durationYears * 12 + form.durationMonths} {isRtl ? 'شهر' : 'months'} — {daysLeft > 0 ? daysLeft + ' ' + t('days') + (isRtl ? ' متبقياً' : ' remaining') : isRtl ? 'منتهية' : 'expired'}</div>
+              <div style={{ fontSize: 9, color: '#888', marginTop: 2 }}>{Number(form.durationYears) * 12 + Number(form.durationMonths)} {isRtl ? 'شهر' : 'months'} — {daysLeft > 0 ? daysLeft + ' ' + t('days') + (isRtl ? ' متبقياً' : ' remaining') : isRtl ? 'منتهية' : 'expired'}</div>
             </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
@@ -620,7 +675,7 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, onCl
           {isRtl ? 'السابق' : 'Back'}
         </button>
         <button onClick={() => step < STEPS - 1 ? setStep(s => s + 1) : handleSave()} disabled={saving} style={{ flex: 1, padding: 7, background: saving ? '#ddd' : '#BA7517', color: 'white', border: 'none', borderRadius: 5, fontSize: 11, cursor: saving ? 'default' : 'pointer', fontWeight: 500 }}>
-          {saving ? (isRtl ? 'جارٍ الحفظ...' : 'Saving...') : step < STEPS - 1 ? (isRtl ? 'التالي' : 'Next') : (isRtl ? 'حفظ الرخصة' : 'Save License')}
+          {saving ? (isRtl ? 'جارٍ الحفظ...' : 'Saving...') : step < STEPS - 1 ? (isRtl ? 'التالي' : 'Next') : isRenewing ? (isRtl ? 'تأكيد التجديد' : 'Confirm Renewal') : (isRtl ? 'حفظ الرخصة' : 'Save License')}
         </button>
       </div>
     </div>
