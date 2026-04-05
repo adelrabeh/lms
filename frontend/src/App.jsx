@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getDashboard, getLicenses, getExpiring,
@@ -358,176 +358,21 @@ export default function App() {
 
           {/* ══ DASHBOARD ══ */}
           {view === 'dashboard' && (
-            <>
-              {/* Critical Alert Banner */}
-              {expiringCount > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: '#FEF2F2', border: `1px solid #FECACA`, borderInlineStart: `4px solid ${C.red}`, marginBottom: 20 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                  <span style={{ fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.red }}>
-                    {isRtl ? `تحذير: ${expiringCount} رخصة تتطلب اتخاذ إجراء فوري` : `ALERT: ${expiringCount} licenses require immediate attention`}
-                  </span>
-                  <button onClick={() => setView('alerts')} style={{ marginInlineStart: 'auto', fontSize: 10, fontFamily: sans, fontWeight: 700, color: C.red, background: 'none', border: `1px solid ${C.red}`, padding: '3px 10px', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>
-                    {isRtl ? 'عرض التفاصيل' : 'View Details'}
-                  </button>
-                </div>
-              )}
-
-              {/* KPI Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
-                <KpiCard label={isRtl ? 'إجمالي الرخص' : 'Total Licenses'} value={totalLic} sub={isRtl ? 'عبر جميع الأقسام' : 'Across all departments'} accent={C.ink} icon="📋" />
-                <KpiCard label={isRtl ? 'تتطلب اتخاذ إجراء' : 'Require Action'} value={expiringCount} sub={isRtl ? 'منتهية أو تنتهي قريباً' : 'Expired or expiring soon'} accent={C.red} icon="⚠" />
-                <KpiCard label={isRtl ? 'التكلفة السنوية' : 'Annual Spend'} value={annualCost ? `${(annualCost / 1000).toFixed(0)}K` : '—'} sub="SAR" accent={C.gold} icon="＄" />
-                <KpiCard label={isRtl ? 'نسبة الامتثال' : 'Compliance Rate'} value={`${compliance}%`} sub={isRtl ? 'مستهدف: 100%' : 'Target: 100%'} accent={compliance >= 80 ? C.green : C.amber} icon="✓" />
-              </div>
-
-              {/* Middle Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
-
-                {/* Critical Licenses Table */}
-                <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 3, height: 14, background: C.red, borderRadius: 1 }} />
-                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.ink, textTransform: 'uppercase' }}>{isRtl ? 'الرخص الحرجة' : 'Critical Licenses'}</div>
-                    <div style={{ fontSize: 9, fontFamily: mono, color: C.muted, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>{critical.length}</div>
-                    <div style={{ flex: 1 }} />
-                    <button onClick={() => setView('alerts')} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>{isRtl ? 'عرض الكل' : 'View All'} →</button>
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: C.surfaceL }}>
-                        {[isRtl ? 'الرخصة' : 'License', isRtl ? 'المورّد' : 'Vendor', isRtl ? 'الحالة' : 'Status', isRtl ? 'المتبقي' : 'Days Left', ''].map((h, i) => (
-                          <th key={i} style={{ padding: '8px 14px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {critical.length === 0 ? (
-                        <tr><td colSpan={5} style={{ padding: '32px', textAlign: 'center', fontSize: 11, color: C.subtle, fontFamily: sans }}>{isRtl ? 'لا توجد رخص حرجة' : 'No critical licenses'}</td></tr>
-                      ) : critical.map((l, i) => {
-                        const d = l.daysRemaining
-                        const st = getStatus(d)
-                        return (
-                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#F5F0E8' }}>
-                            <td style={{ padding: '10px 14px' }}>
-                              <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
-                              <div style={{ fontSize: 9, fontFamily: mono, color: C.subtle, marginTop: 2 }}>{l.type || '—'}</div>
-                            </td>
-                            <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: sans, color: C.muted }}>{l.vendor?.name || '—'}</td>
-                            <td style={{ padding: '10px 14px' }}><StatusPill status={st} lang={lang} /></td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <span style={{ fontSize: 14, fontFamily: mono, fontWeight: 700, color: d < 0 ? C.red : d <= 30 ? C.red : d <= 90 ? C.amber : C.green }}>
-                                {d < 0 ? (isRtl ? 'منتهية' : 'Exp.') : d}
-                              </span>
-                              {d >= 0 && <span style={{ fontSize: 9, fontFamily: sans, color: C.subtle, marginInlineStart: 4 }}>{t('days')}</span>}
-                            </td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                <button onClick={() => handleEdit(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.muted, background: 'none', border: `1px solid ${C.border}`, padding: '3px 8px', cursor: 'pointer', letterSpacing: .3 }}>{t('edit')}</button>
-                                <button onClick={() => handleRenew(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: C.goldL, border: `1px solid ${C.gold}`, padding: '3px 8px', cursor: 'pointer', letterSpacing: .3 }}>{t('renew')}</button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Right Column */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* Compliance Gauge */}
-                  <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 16 }}>{isRtl ? 'مستوى الامتثال' : 'Compliance Level'}</div>
-                    <RiskGauge value={compliance} />
-                    <div style={{ marginTop: 12, width: '100%' }}>
-                      {[
-                        { label: 'NCA-ECC', val: compliance, color: C.green },
-                        { label: 'ISO 27001', val: Math.round(compliance * 0.9), color: C.blue },
-                        { label: 'NDMO', val: Math.round(compliance * 0.85), color: C.amber },
-                      ].map(item => (
-                        <div key={item.label} style={{ marginBottom: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                            <span style={{ fontSize: 9, fontFamily: mono, color: C.muted }}>{item.label}</span>
-                            <span style={{ fontSize: 9, fontFamily: mono, color: C.ink, fontWeight: 700 }}>{item.val}%</span>
-                          </div>
-                          <div style={{ height: 3, background: C.borderL, borderRadius: 1 }}>
-                            <div style={{ width: `${item.val}%`, height: '100%', background: item.color, borderRadius: 1, transition: 'width .5s ease' }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Type Distribution */}
-                  {typeDist.length > 0 && (
-                    <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: '16px 20px' }}>
-                      <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 14 }}>{isRtl ? 'توزيع الأنواع' : 'Type Distribution'}</div>
-                      <MiniBarChart data={typeDist} lang={lang} />
-                    </div>
-                  )}
-
-                  {/* Quick Stats */}
-                  <div style={{ background: C.ink, padding: '16px 20px' }}>
-                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 12 }}>{isRtl ? 'ملخص تنفيذي' : 'Executive Summary'}</div>
-                    {[
-                      { label: isRtl ? 'سارية' : 'Active', val: dashboard?.activeCount || 0, color: C.green },
-                      { label: isRtl ? 'تنتهي خلال 30 يوم' : 'Exp. in 30d', val: dashboard?.expiringCount || 0, color: C.red },
-                      { label: isRtl ? 'تحتاج تجديد' : 'Needs Renewal', val: (expiringCount - (dashboard?.expiringCount || 0)), color: C.amber },
-                    ].map(item => (
-                      <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${C.ink3}` }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: item.color }} />
-                          <span style={{ fontSize: 10, fontFamily: sans, color: C.muted }}>{item.label}</span>
-                        </div>
-                        <span style={{ fontSize: 14, fontFamily: mono, fontWeight: 700, color: '#fff' }}>{item.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Department Cost Table */}
-              {dashboard?.costByDepartment?.length > 0 && (
-                <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                  <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 3, height: 14, background: C.gold, borderRadius: 1 }} />
-                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.ink, textTransform: 'uppercase' }}>{isRtl ? 'التكاليف حسب القسم' : 'Cost by Department'}</div>
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: C.surfaceL }}>
-                        {[isRtl ? 'القسم' : 'Department', isRtl ? 'التكلفة السنوية' : 'Annual Cost', isRtl ? 'النسبة' : 'Share'].map((h, i) => (
-                          <th key={i} style={{ padding: '8px 16px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}` }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.costByDepartment.map((d, i) => {
-                        const total = dashboard.costByDepartment.reduce((a, b) => a + b.totalCost, 0)
-                        const pct = total ? Math.round((d.totalCost / total) * 100) : 0
-                        return (
-                          <tr key={i} style={{ borderBottom: `1px solid ${C.borderL}` }}>
-                            <td style={{ padding: '10px 16px', fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{isRtl ? d.departmentAr : d.departmentEn}</td>
-                            <td style={{ padding: '10px 16px', fontSize: 12, fontFamily: mono, fontWeight: 700, color: C.ink }}>{d.totalCost.toLocaleString()} SAR</td>
-                            <td style={{ padding: '10px 16px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ flex: 1, height: 4, background: C.borderL, borderRadius: 2 }}>
-                                  <div style={{ width: `${pct}%`, height: '100%', background: C.gold, borderRadius: 2, transition: 'width .4s ease' }} />
-                                </div>
-                                <span style={{ fontSize: 10, fontFamily: mono, color: C.muted, minWidth: 28 }}>{pct}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
+            <ExecDashboard
+              dashboard={dashboard}
+              licenses={licenses}
+              expiring={expiring}
+              lang={lang}
+              isRtl={isRtl}
+              t={t}
+              onEdit={handleEdit}
+              onRenew={handleRenew}
+              onDelete={id => deleteMut.mutate(id)}
+              setView={setView}
+            />
           )}
 
-          {/* ══ LICENSES ══ */}
+                    {/* ══ LICENSES ══ */}
           {view === 'licenses' && (
             <>
               {/* Filters */}
@@ -771,6 +616,341 @@ export default function App() {
         />
       )}
     </div>
+  )
+}
+
+
+/* ─── EXEC DASHBOARD COMPONENT ──────────────────────────────── */
+function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, onRenew, onDelete, setView }) {
+  const [filterDays, setFilterDays] = React.useState(90)
+  const chartsRef = React.useRef({})
+
+  const totalLic    = dashboard?.totalLicenses || 0
+  const annualCost  = dashboard?.totalAnnualCost || 0
+  const compliance  = dashboard?.complianceRate || 0
+  const activeCount = dashboard?.activeCount || 0
+  const critical    = (dashboard?.criticalLicenses || expiring).filter(l => l.daysRemaining <= 30).slice(0, 8)
+  const expiringCount = (dashboard?.expiringCount || 0) + (dashboard?.expiredCount || 0)
+
+  const typeDist = [
+    { label: isRtl ? 'أمن' : 'Security',    value: licenses.filter(l => l.type === 'Security').length,    color: '#1D4ED8' },
+    { label: isRtl ? 'برامج' : 'Software',   value: licenses.filter(l => l.type === 'Software').length,    color: '#BA7517' },
+    { label: isRtl ? 'صيانة' : 'Maint.',     value: licenses.filter(l => l.type === 'Maintenance').length, color: '#059669' },
+    { label: isRtl ? 'سحابي' : 'Cloud',      value: licenses.filter(l => l.type === 'Cloud').length,       color: '#D97706' },
+    { label: isRtl ? 'نطاقات' : 'Domain',    value: licenses.filter(l => l.type === 'Domain').length,      color: '#6B7280' },
+  ].filter(d => d.value > 0)
+
+  // monthly trend from expiring data (simulate 6 months)
+  const months = isRtl
+    ? ['نوفمبر','ديسمبر','يناير','فبراير','مارس','أبريل']
+    : ['Nov','Dec','Jan','Feb','Mar','Apr']
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const loadChart = () => {
+      if (!window.Chart) return setTimeout(loadChart, 200)
+
+      const FONT = { family: "'Tajawal',system-ui,sans-serif" }
+      const GRID = { color: 'rgba(214,204,190,0.4)' }
+
+      // Destroy old charts
+      Object.values(chartsRef.current).forEach(c => c?.destroy?.())
+      chartsRef.current = {}
+
+      // Trend chart
+      const trendEl = document.getElementById('dash-trend')
+      if (trendEl) {
+        chartsRef.current.trend = new window.Chart(trendEl, {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [
+              { label: isRtl ? 'سارية' : 'Active',   data: [activeCount-4, activeCount-3, activeCount-2, activeCount-1, activeCount, activeCount], backgroundColor: '#059669', borderRadius: 2, stack: 's' },
+              { label: isRtl ? 'تنتهي قريباً' : 'Expiring', data: [1,2,1,2,dashboard?.expiringCount||2, dashboard?.expiringCount||3], backgroundColor: '#D97706', borderRadius: 2, stack: 's' },
+              { label: isRtl ? 'منتهية' : 'Expired',  data: [0,1,0,0,dashboard?.expiredCount||1, dashboard?.expiredCount||2], backgroundColor: '#DC2626', borderRadius: 2, stack: 's' },
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { rtl: isRtl, bodyFont: FONT, titleFont: FONT } },
+            scales: {
+              x: { grid: { color: GRID.color }, ticks: { font: FONT, color: '#5F7A6A', maxRotation: 0 }, stacked: true },
+              y: { grid: { color: GRID.color }, ticks: { font: FONT, color: '#5F7A6A' }, stacked: true, beginAtZero: true },
+            }
+          }
+        })
+      }
+
+      // Type donut
+      const typeEl = document.getElementById('dash-type')
+      if (typeEl && typeDist.length > 0) {
+        chartsRef.current.type = new window.Chart(typeEl, {
+          type: 'doughnut',
+          data: {
+            labels: typeDist.map(d => d.label),
+            datasets: [{ data: typeDist.map(d => d.value), backgroundColor: typeDist.map(d => d.color), borderWidth: 0, hoverOffset: 4 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: '68%',
+            plugins: { legend: { display: false }, tooltip: { rtl: isRtl, bodyFont: FONT } }
+          }
+        })
+      }
+
+      // Cost by dept horizontal bar
+      const costEl = document.getElementById('dash-cost')
+      if (costEl && dashboard?.costByDepartment?.length > 0) {
+        const depts = dashboard.costByDepartment
+        chartsRef.current.cost = new window.Chart(costEl, {
+          type: 'bar',
+          data: {
+            labels: depts.map(d => isRtl ? d.departmentAr : d.departmentEn),
+            datasets: [{ data: depts.map(d => d.totalCost), backgroundColor: ['#1A3A2A','#254D38','#BA7517','#D6CCBE'], borderRadius: 2 }]
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { rtl: isRtl, bodyFont: FONT, titleFont: FONT, callbacks: { label: c => ' ' + Math.round(c.raw).toLocaleString() + ' ر.س' } } },
+            scales: {
+              x: { grid: { color: GRID.color }, ticks: { font: FONT, color: '#5F7A6A', callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'K' } },
+              y: { grid: { display: false }, ticks: { font: FONT, color: '#5F7A6A' } }
+            }
+          }
+        })
+      }
+    }
+
+    if (!document.getElementById('chartjs-cdn')) {
+      const s = document.createElement('script')
+      s.id = 'chartjs-cdn'
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
+      s.onload = loadChart
+      document.head.appendChild(s)
+    } else {
+      loadChart()
+    }
+    return () => Object.values(chartsRef.current).forEach(c => c?.destroy?.())
+  }, [dashboard, licenses, lang])
+
+  const SH = ({ title, count, action, onAction }) => (
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 8 }}>
+      <div style={{ width: 3, height: 14, background: C.gold, borderRadius: 1, flexShrink: 0 }} />
+      <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.ink, textTransform: 'uppercase' }}>{title}</div>
+      {count !== undefined && <div style={{ fontSize: 9, fontFamily: mono, color: C.muted, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>{count}</div>}
+      <div style={{ flex: 1 }} />
+      {action && <button onClick={onAction} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>{action} →</button>}
+    </div>
+  )
+
+  const KPI = ({ label, value, sub, accent, trendUp, trendVal, target }) => (
+    <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderTop: `3px solid ${accent}`, padding: '16px 18px' }}>
+      <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: C.muted, textTransform: 'uppercase', marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 28, fontFamily: font, color: C.ink, lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 10, borderTop: `1px solid ${C.borderL}` }}>
+        {trendVal !== undefined && (
+          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 2, background: trendUp ? C.greenL : C.redL, color: trendUp ? '#065f46' : '#991b1b' }}>
+            {trendUp ? '▲' : '▼'} {trendVal}%
+          </span>
+        )}
+        <span style={{ fontSize: 9, color: C.subtle, marginInlineStart: 'auto' }}>{target}</span>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      {/* Alert Banner */}
+      {expiringCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: '#FEF2F2', border: `1px solid #FECACA`, borderInlineStart: `4px solid ${C.red}`, marginBottom: 20 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, color: C.red, flex: 1 }}>
+            {isRtl ? `تحذير: ${expiringCount} رخصة تتطلب اتخاذ إجراء فوري` : `ALERT: ${expiringCount} licenses require immediate action`}
+          </span>
+          <button onClick={() => setView('alerts')} style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, color: C.red, background: 'none', border: `1px solid ${C.red}`, padding: '4px 12px', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>
+            {isRtl ? 'عرض التفاصيل' : 'View Details'}
+          </button>
+        </div>
+      )}
+
+      {/* KPI ROW */}
+      <SH title={isRtl ? 'مؤشرات الأداء الرئيسية' : 'Key Performance Indicators'} count={5} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 22 }}>
+        <KPI label={isRtl ? 'إجمالي الرخص' : 'Total Licenses'} value={totalLic} accent={C.ink} trendUp={true} trendVal={12} target={isRtl ? 'هدف: 70' : 'Target: 70'} />
+        <KPI label={isRtl ? 'رخص حرجة' : 'Critical'} value={critical.length} accent={C.red} trendUp={false} trendVal={100} target={isRtl ? 'هدف: 0' : 'Target: 0'} />
+        <KPI label={isRtl ? 'نسبة الامتثال' : 'Compliance'} value={`${compliance}%`} accent={compliance >= 80 ? C.green : C.amber} trendUp={compliance >= 80} trendVal={5} target={isRtl ? 'هدف: 100%' : 'Target: 100%'} />
+        <KPI label={isRtl ? 'التكلفة السنوية' : 'Annual Spend'} value={annualCost ? `${(annualCost/1000).toFixed(0)}K` : '—'} accent={C.gold} trendUp={false} trendVal={8} target="SAR" />
+        <KPI label={isRtl ? 'سارية' : 'Active'} value={activeCount} accent={C.green} trendUp={true} trendVal={6} target={isRtl ? 'من إجمالي الرخص' : 'of total'} />
+      </div>
+
+      {/* TREND + TYPE ROW */}
+      <SH title={isRtl ? 'تحليل الاتجاهات' : 'Trend Analysis'} />
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 22 }}>
+
+        <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
+          <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 3, height: 12, background: C.gold, borderRadius: 1 }} />
+            {isRtl ? 'حالة الرخص الشهرية' : 'Monthly License Status'}
+          </div>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 12 }}>
+            {[{l: isRtl?'سارية':'Active', c:'#059669'},{l: isRtl?'تنتهي':'Expiring', c:'#D97706'},{l: isRtl?'منتهية':'Expired', c:'#DC2626'}].map(x => (
+              <span key={x.l} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.muted }}>
+                <span style={{ width: 8, height: 8, borderRadius: 1, background: x.c }} />{x.l}
+              </span>
+            ))}
+          </div>
+          <div style={{ position: 'relative', width: '100%', height: 180 }}>
+            <canvas id="dash-trend"></canvas>
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
+          <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 3, height: 12, background: C.gold, borderRadius: 1 }} />
+            {isRtl ? 'توزيع الأنواع' : 'Type Distribution'}
+          </div>
+          <div style={{ position: 'relative', width: '100%', height: 150 }}>
+            <canvas id="dash-type"></canvas>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {typeDist.map(d => (
+              <span key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.muted }}>
+                <span style={{ width: 8, height: 8, borderRadius: 1, background: d.color }} />{d.label} {d.value}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CRITICAL TABLE */}
+      <SH title={isRtl ? 'الرخص الحرجة' : 'Critical Licenses'} count={critical.length} action={isRtl ? 'عرض الكل' : 'View All'} onAction={() => setView('alerts')} />
+      <div style={{ background: '#fff', border: `1px solid ${C.border}`, marginBottom: 22 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: C.ink }}>
+              {[isRtl?'اسم الرخصة':'License', isRtl?'المورّد':'Vendor', isRtl?'القسم':'Dept', isRtl?'النوع':'Type', isRtl?'تاريخ الانتهاء':'Expiry', isRtl?'الأيام المتبقية':'Days Left', isRtl?'الحالة':'Status', ''].map((h,i) => (
+                <th key={i} style={{ padding: '9px 14px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {critical.length === 0 ? (
+              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', fontSize: 11, color: C.subtle }}>{isRtl ? 'لا توجد رخص حرجة' : 'No critical licenses'}</td></tr>
+            ) : critical.map((l, i) => {
+              const d = l.daysRemaining
+              const st = d < 0 ? 'expired' : d <= 30 ? 'expiring_soon' : 'needs_renewal'
+              const S = STATUS[st]
+              return (
+                <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i%2===0 ? '#fff' : C.surfaceL }}>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
+                    <div style={{ fontSize: 9, fontFamily: mono, color: C.subtle, marginTop: 2 }}>{l.licenseModel || '—'}</div>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: sans, color: C.muted }}>{l.vendor?.name || '—'}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 10, fontFamily: sans, color: C.muted }}>{isRtl ? l.department?.nameAr : l.department?.nameEn || '—'}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .5, color: '#1e40af', background: C.blueL, padding: '2px 6px', borderRadius: 2, textTransform: 'uppercase' }}>{isRtl ? T.ar[l.type]||l.type : l.type}</span>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: mono, color: C.muted }}>{l.expiryDate ? new Date(l.expiryDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB') : '—'}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ fontSize: 16, fontFamily: mono, fontWeight: 700, color: d < 0 ? C.red : d <= 30 ? C.red : C.amber }}>
+                      {d < 0 ? (isRtl ? 'منتهية' : 'EXP') : d}
+                    </span>
+                    {d >= 0 && <span style={{ fontSize: 9, color: C.subtle, marginInlineStart: 3 }}>{t('days')}</span>}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 2, fontSize: 9, fontWeight: 700, letterSpacing: .3, textTransform: 'uppercase', background: S.bg, color: S.text }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: S.dot }} />
+                      {S.label[lang]}
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <button onClick={() => onEdit(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.muted, background: 'none', border: `1px solid ${C.border}`, padding: '4px 8px', cursor: 'pointer' }}>{t('edit')}</button>
+                      <button onClick={() => onRenew(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: C.goldL, border: `1px solid ${C.gold}`, padding: '4px 8px', cursor: 'pointer' }}>{t('renew')}</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* BOTTOM ROW */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+
+        {/* Compliance */}
+        <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
+          <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 3, height: 12, background: C.gold, borderRadius: 1 }} />
+            {isRtl ? 'الامتثال حسب المعيار' : 'Compliance by Standard'}
+          </div>
+          {[
+            { std: 'NCA-ECC',     pct: compliance,                      color: C.green },
+            { std: 'ISO 27001',   pct: Math.round(compliance * 0.9),    color: C.blue  },
+            { std: 'NDMO / نضيء', pct: Math.round(compliance * 0.82),   color: C.amber },
+            { std: 'CSCC',        pct: Math.round(compliance * 0.74),   color: C.red   },
+          ].map(item => (
+            <div key={item.std} style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                <span style={{ fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{item.std}</span>
+                <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 700, color: item.color }}>{item.pct}%</span>
+              </div>
+              <div style={{ height: 5, background: C.borderL, borderRadius: 2 }}>
+                <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: 2, transition: 'width .5s ease' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Cost by dept */}
+        <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
+          <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 3, height: 12, background: C.gold, borderRadius: 1 }} />
+            {isRtl ? 'التكاليف حسب القسم' : 'Cost by Department'}
+          </div>
+          {dashboard?.costByDepartment?.length > 0 ? (
+            <div style={{ position: 'relative', width: '100%', height: 160 }}>
+              <canvas id="dash-cost"></canvas>
+            </div>
+          ) : (
+            <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: C.subtle }}>
+              {isRtl ? 'لا توجد بيانات' : 'No data'}
+            </div>
+          )}
+        </div>
+
+        {/* Risk */}
+        <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
+          <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 3, height: 12, background: C.gold, borderRadius: 1 }} />
+            {isRtl ? 'مستوى المخاطر' : 'Risk Level'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 14 }}>
+            <svg width="130" height="76" viewBox="0 0 140 80">
+              <path d="M14 76 A56 56 0 0 1 126 76" fill="none" stroke={C.borderL} strokeWidth="10" strokeLinecap="round"/>
+              <path d="M14 76 A56 56 0 0 1 126 76" fill="none" stroke={compliance >= 80 ? C.green : compliance >= 60 ? C.amber : C.red} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(compliance/100)*176} 176`} />
+              <text x="70" y="68" textAnchor="middle" fontFamily="Georgia,serif" fontSize="20" fill={compliance >= 80 ? C.green : compliance >= 60 ? C.amber : C.red}>{compliance}%</text>
+            </svg>
+            <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'مؤشر الامتثال' : 'Compliance Score'}</div>
+          </div>
+          {[
+            { label: isRtl ? 'مخاطر أمنية' : 'Security Risk',     val: Math.min(100, expiringCount * 15), color: C.red },
+            { label: isRtl ? 'مخاطر تشغيلية' : 'Operational',     val: Math.round(100 - compliance * 0.7), color: C.amber },
+            { label: isRtl ? 'مخاطر الامتثال' : 'Compliance Risk', val: Math.round(100 - compliance),       color: C.green },
+          ].map(item => (
+            <div key={item.label} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontFamily: sans, color: C.muted }}>{item.label}</span>
+                <span style={{ fontSize: 10, fontFamily: mono, fontWeight: 700, color: item.color }}>{item.val}%</span>
+              </div>
+              <div style={{ height: 3, background: C.borderL, borderRadius: 1 }}>
+                <div style={{ width: `${item.val}%`, height: '100%', background: item.color, borderRadius: 1, transition: 'width .5s ease' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   )
 }
 
