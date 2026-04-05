@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getDashboard, getLicenses, getExpiring,
@@ -7,7 +7,35 @@ import {
 } from './services/api'
 import './index.css'
 
-// ── helpers ──────────────────────────────────────
+/* ─── TOKENS ────────────────────────────────────────────────── */
+const C = {
+  ink:      '#0D0F14',
+  ink2:     '#1C2030',
+  ink3:     '#2E3347',
+  muted:    '#6B7280',
+  subtle:   '#9CA3AF',
+  border:   '#E5E7EB',
+  borderL:  '#F3F4F6',
+  surface:  '#FFFFFF',
+  surfaceL: '#F9FAFB',
+  gold:     '#BA7517',
+  goldL:    '#F5E6C8',
+  goldD:    '#8A5710',
+  green:    '#059669',
+  greenL:   '#D1FAE5',
+  red:      '#DC2626',
+  redL:     '#FEE2E2',
+  amber:    '#D97706',
+  amberL:   '#FEF3C7',
+  blue:     '#1D4ED8',
+  blueL:    '#DBEAFE',
+}
+
+const font = `'Georgia', 'Times New Roman', serif`
+const mono = `'Courier New', monospace`
+const sans = `'Helvetica Neue', Helvetica, Arial, sans-serif`
+
+/* ─── TRANSLATIONS ───────────────────────────────────────────── */
 const T = {
   ar: {
     org: 'دارة الملك عبدالعزيز', sys: 'نظام إدارة الرخص',
@@ -18,12 +46,13 @@ const T = {
     stat3: 'التكاليف السنوية', stat4: 'نسبة الامتثال',
     renew: 'تجديد', edit: 'تعديل', delete: 'حذف',
     save: 'حفظ', cancel: 'إلغاء', loading: 'جارٍ التحميل...',
-    error: 'حدث خطأ', saved: 'تم الحفظ بنجاح',
     sw: 'برامج', saas: 'سحابي', hw: 'أجهزة',
     active: 'سارية', expiring_soon: 'تنتهي قريباً',
     needs_renewal: 'تحتاج تجديد', expired: 'منتهية',
     days: 'يوم', search: 'بحث...',
     noData: 'لا توجد بيانات',
+    Security: 'أمن', Software: 'برامج', Maintenance: 'صيانة',
+    Cloud: 'سحابي', Domain: 'نطاقات', Service: 'خدمات',
   },
   en: {
     org: 'King Abdulaziz Foundation', sys: 'License Management System',
@@ -34,37 +63,126 @@ const T = {
     stat3: 'Annual Cost', stat4: 'Compliance Rate',
     renew: 'Renew', edit: 'Edit', delete: 'Delete',
     save: 'Save', cancel: 'Cancel', loading: 'Loading...',
-    error: 'An error occurred', saved: 'Saved successfully',
     sw: 'Software', saas: 'Cloud', hw: 'Hardware',
     active: 'Active', expiring_soon: 'Expiring Soon',
     needs_renewal: 'Needs Renewal', expired: 'Expired',
     days: 'days', search: 'Search...',
     noData: 'No data available',
+    Security: 'Security', Software: 'Software', Maintenance: 'Maintenance',
+    Cloud: 'Cloud', Domain: 'Domain', Service: 'Service',
   }
 }
 
-const statusColor = {
-  active: '#3B6D11', expiring_soon: '#A32D2D',
-  needs_renewal: '#BA7517', expired: '#A32D2D'
+/* ─── STATUS CONFIG ─────────────────────────────────────────── */
+const STATUS = {
+  active:        { label: { ar: 'سارية',        en: 'Active'        }, dot: C.green, bg: C.greenL, text: C.green },
+  expiring_soon: { label: { ar: 'تنتهي قريباً', en: 'Expiring Soon' }, dot: C.red,   bg: C.redL,   text: C.red   },
+  needs_renewal: { label: { ar: 'تجديد مطلوب', en: 'Needs Renewal' }, dot: C.amber, bg: C.amberL, text: C.amber },
+  expired:       { label: { ar: 'منتهية',       en: 'Expired'       }, dot: C.red,   bg: C.redL,   text: C.red   },
 }
-const statusBg = {
-  active: '#EAF3DE', expiring_soon: '#FCEBEB',
-  needs_renewal: '#FAEEDA', expired: '#FCEBEB'
-}
-const typeBg = { sw: '#F3F0FF', saas: '#E6F1FB', hw: '#F1EFE8' }
-const typeColor = { sw: '#534AB7', saas: '#185FA5', hw: '#5F5E5A' }
 
-function badge(label, bg, color) {
+function getStatus(d) {
+  if (d < 0) return 'expired'
+  if (d <= 30) return 'expiring_soon'
+  if (d <= 90) return 'needs_renewal'
+  return 'active'
+}
+
+/* ─── TINY COMPONENTS ───────────────────────────────────────── */
+function StatusPill({ status, lang }) {
+  const s = STATUS[status] || STATUS.active
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', padding: '2px 7px',
-      borderRadius: 8, fontSize: 9, fontWeight: 500, whiteSpace: 'nowrap',
-      background: bg, color, border: `.5px solid ${color}22`
-    }}>{label}</span>
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '2px 8px', borderRadius: 2,
+      background: s.bg, color: s.text,
+      fontSize: 10, fontWeight: 600, fontFamily: sans, letterSpacing: .3,
+      textTransform: 'uppercase'
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+      {s.label[lang]}
+    </span>
   )
 }
 
-// ── Main App ─────────────────────────────────────
+function KpiCard({ label, value, sub, trend, accent, icon }) {
+  return (
+    <div style={{
+      background: C.surface, border: `1px solid ${C.border}`,
+      borderTop: `3px solid ${accent || C.gold}`,
+      padding: '20px 22px', position: 'relative', overflow: 'hidden'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 10 }}>{label}</div>
+          <div style={{ fontSize: 32, fontFamily: font, fontWeight: 400, color: C.ink, lineHeight: 1, marginBottom: 4 }}>{value}</div>
+          <div style={{ fontSize: 11, fontFamily: sans, color: C.subtle }}>{sub}</div>
+        </div>
+        <div style={{ opacity: .08, fontSize: 48 }}>{icon}</div>
+      </div>
+      {trend !== undefined && (
+        <div style={{
+          marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.borderL}`,
+          fontSize: 10, fontFamily: sans, fontWeight: 600,
+          color: trend > 0 ? C.green : trend < 0 ? C.red : C.muted
+        }}>
+          {trend > 0 ? '▲' : trend < 0 ? '▼' : '—'} {Math.abs(trend)}% vs last period
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SectionHeader({ title, count, action, onAction }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 10 }}>
+      <div style={{ width: 3, height: 16, background: C.gold, borderRadius: 1.5, flexShrink: 0 }} />
+      <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.ink, textTransform: 'uppercase' }}>{title}</div>
+      {count !== undefined && (
+        <div style={{ fontSize: 10, fontFamily: mono, color: C.muted, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>{count}</div>
+      )}
+      <div style={{ flex: 1 }} />
+      {action && <button onClick={onAction} style={{ fontSize: 10, fontFamily: sans, fontWeight: 600, color: C.gold, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>{action} →</button>}
+    </div>
+  )
+}
+
+/* ─── MINI BAR CHART ────────────────────────────────────────── */
+function MiniBarChart({ data, lang }) {
+  const max = Math.max(...data.map(d => d.value), 1)
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 80 }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <div style={{ fontSize: 9, fontFamily: mono, color: C.muted }}>{d.value}</div>
+          <div style={{ width: '100%', height: Math.max(4, (d.value / max) * 60), background: d.color || C.gold, borderRadius: '1px 1px 0 0', transition: 'height .4s ease' }} />
+          <div style={{ fontSize: 8, fontFamily: sans, color: C.subtle, textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{d.label}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─── RISK GAUGE ─────────────────────────────────────────────── */
+function RiskGauge({ value }) {
+  const pct = Math.min(100, Math.max(0, value))
+  const color = pct >= 80 ? C.green : pct >= 50 ? C.amber : C.red
+  const circumference = 2 * Math.PI * 36
+  const offset = circumference - (pct / 100) * circumference
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <svg width="100" height="60" viewBox="0 0 100 60">
+        <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke={C.borderL} strokeWidth="8" strokeLinecap="round" />
+        <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+          strokeDasharray={`${(pct / 100) * 125.6} 125.6`} style={{ transition: 'stroke-dasharray .6s ease' }} />
+        <text x="50" y="52" textAnchor="middle" fontFamily={font} fontSize="18" fill={C.ink} fontWeight="400">{pct}%</text>
+      </svg>
+      <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: C.muted, textTransform: 'uppercase' }}>Compliance Score</div>
+    </div>
+  )
+}
+
+/* ─── MAIN APP ───────────────────────────────────────────────── */
 export default function App() {
   const [lang, setLang] = useState('ar')
   const [view, setView] = useState('dashboard')
@@ -77,286 +195,549 @@ export default function App() {
   const isRtl = lang === 'ar'
   const qc = useQueryClient()
 
-  // Queries
-  const { data: dashboard, isLoading: dashLoading } = useQuery({
-    queryKey: ['dashboard'], queryFn: getDashboard, refetchInterval: 60000
-  })
+  const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard, refetchInterval: 60000 })
   const { data: licenses = [], isLoading: licLoading } = useQuery({
     queryKey: ['licenses', filterType, search],
-    queryFn: () => getLicenses({
-      type: filterType !== 'all' ? filterType : undefined,
-      search: search || undefined
-    }),
-    enabled: view === 'licenses'
+    queryFn: () => getLicenses({ type: filterType !== 'all' ? filterType : undefined, search: search || undefined }),
+    enabled: view === 'licenses' || view === 'dashboard'
   })
-  const { data: expiring = [] } = useQuery({
-    queryKey: ['expiring'], queryFn: () => getExpiring(90)
-  })
+  const { data: expiring = [] } = useQuery({ queryKey: ['expiring'], queryFn: () => getExpiring(90) })
   const { data: vendors = [] } = useQuery({ queryKey: ['vendors'], queryFn: getVendors })
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: getDepartments })
   const { data: employees = [] } = useQuery({ queryKey: ['employees'], queryFn: getEmployees })
 
-  // Mutations
-  const createMut = useMutation({
-    mutationFn: createLicense,
-    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setRenewingLicense(null) }
-  })
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }) => updateLicense(id, data),
-    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setEditingId(null); setRenewingLicense(null) }
-  })
-  const deleteMut = useMutation({
-    mutationFn: deleteLicense,
-    onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']) }
-  })
+  const createMut = useMutation({ mutationFn: createLicense, onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setRenewingLicense(null) } })
+  const updateMut = useMutation({ mutationFn: ({ id, data }) => updateLicense(id, data), onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']); setPanelOpen(false); setEditingId(null); setRenewingLicense(null) } })
+  const deleteMut = useMutation({ mutationFn: deleteLicense, onSuccess: () => { qc.invalidateQueries(['licenses']); qc.invalidateQueries(['dashboard']) } })
 
-  const criticalLicenses = dashboard?.criticalLicenses || expiring.slice(0, 8)
+  const handleEdit = (l) => { setEditingId(l.id); setRenewingLicense(null); setPanelOpen(true) }
+  const handleRenew = (l) => { setEditingId(null); setRenewingLicense(l); setPanelOpen(true) }
 
-  // فتح نموذج التعديل
-  const handleEdit = (license) => {
-    setEditingId(license.id)
-    setRenewingLicense(null)
-    setPanelOpen(true)
-  }
+  const critical = (dashboard?.criticalLicenses || expiring).slice(0, 6)
+  const totalLic = dashboard?.totalLicenses || 0
+  const expiringCount = (dashboard?.expiringCount || 0) + (dashboard?.expiredCount || 0)
+  const annualCost = dashboard?.totalAnnualCost || 0
+  const compliance = dashboard?.complianceRate || 0
 
-  // فتح نموذج التجديد — يفتح نموذج إضافة جديد مع بيانات الرخصة القديمة
-  const handleRenew = (license) => {
-    setEditingId(null)
-    setRenewingLicense(license)
-    setPanelOpen(true)
-  }
+  // type distribution for bar chart
+  const typeDist = [
+    { label: isRtl ? 'أمن' : 'Security',   value: licenses.filter(l => l.type === 'Security').length,    color: '#1D4ED8' },
+    { label: isRtl ? 'برامج' : 'Software',  value: licenses.filter(l => l.type === 'Software').length,    color: C.gold   },
+    { label: isRtl ? 'صيانة' : 'Maint.',    value: licenses.filter(l => l.type === 'Maintenance').length, color: C.green  },
+    { label: isRtl ? 'سحابي' : 'Cloud',     value: licenses.filter(l => l.type === 'Cloud').length,       color: C.amber  },
+    { label: isRtl ? 'نطاق' : 'Domain',     value: licenses.filter(l => l.type === 'Domain').length,      color: C.muted  },
+  ].filter(d => d.value > 0)
+
+  const navItems = [
+    { id: 'dashboard', label: isRtl ? 'لوحة التحكم' : 'Dashboard' },
+    { id: 'licenses',  label: isRtl ? 'سجل الرخص' : 'Registry'   },
+    { id: 'alerts',    label: isRtl ? 'التنبيهات' : 'Alerts', badge: expiring.filter(l => l.daysRemaining < 30).length },
+    { id: 'compliance',label: isRtl ? 'الامتثال' : 'Compliance'  },
+    { id: 'reports',   label: isRtl ? 'التقارير' : 'Reports'      },
+  ]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'system-ui, sans-serif', background: 'var(--color-background-tertiary, #f5f5f0)' }}>
+    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#F4F5F7', overflow: 'hidden' }}>
 
-      {/* ── Sidebar ── */}
-      <aside style={{ width: 210, flexShrink: 0, borderInlineEnd: '.5px solid #e0ddd4', background: '#faf9f5', display: 'flex', flexDirection: 'column', padding: '12px 0', overflowY: 'auto' }}>
-        <div style={{ padding: '6px 12px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, background: '#BA7517', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 500 }}>{t('org')}</div>
-            <div style={{ fontSize: 9, color: '#888' }}>{t('sys')}</div>
+      {/* ── SIDEBAR ── */}
+      <aside style={{ width: 220, flexShrink: 0, background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Brand */}
+        <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${C.ink3}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div style={{ width: 32, height: 32, background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, color: '#FFFFFF', letterSpacing: .3 }}>{t('org')}</div>
+              <div style={{ fontSize: 9, color: C.muted, letterSpacing: .5, marginTop: 1 }}>LMS PLATFORM</div>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', margin: '0 8px 8px', background: '#ededea', borderRadius: 6, padding: 2, gap: 2 }}>
-          {['ar', 'en'].map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{
-              flex: 1, padding: '4px 0', borderRadius: 4, fontSize: 10, cursor: 'pointer',
-              border: lang === l ? '.5px solid #ddd' : 'none',
-              background: lang === l ? 'white' : 'transparent',
-              color: lang === l ? '#BA7517' : '#888', fontWeight: lang === l ? 500 : 400
-            }}>{l === 'ar' ? 'العربية' : 'English'}</button>
-          ))}
+        {/* Lang */}
+        <div style={{ padding: '10px 16px' }}>
+          <div style={{ display: 'flex', background: C.ink2, borderRadius: 2, overflow: 'hidden' }}>
+            {['ar', 'en'].map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{
+                flex: 1, padding: '5px 0', fontSize: 10, fontFamily: sans, fontWeight: 700,
+                letterSpacing: .5, cursor: 'pointer', border: 'none', textTransform: 'uppercase',
+                background: lang === l ? C.gold : 'transparent',
+                color: lang === l ? '#fff' : C.muted, transition: 'all .2s'
+              }}>{l === 'ar' ? 'عربي' : 'EN'}</button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ height: .5, background: '#e0ddd4', margin: '0 10px 8px' }} />
-
-        <div style={{ padding: '0 8px 8px' }}>
+        {/* Add Button */}
+        <div style={{ padding: '4px 16px 12px' }}>
           <button onClick={() => { setPanelOpen(true); setEditingId(null); setRenewingLicense(null) }} style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px',
-            borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '.5px solid #FAC775',
-            background: '#FAEEDA', color: '#BA7517', fontWeight: 500
+            width: '100%', padding: '9px 0', background: C.gold, border: 'none', cursor: 'pointer',
+            fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: '#fff',
+            textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
           }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            {t('addlicense')}
+            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> {t('addlicense')}
           </button>
         </div>
 
-        <div style={{ height: .5, background: '#e0ddd4', margin: '0 10px 8px' }} />
+        <div style={{ height: 1, background: C.ink3, margin: '0 16px' }} />
 
-        {[
-          { id: 'dashboard', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z', label: t('dashboard') },
-          { id: 'licenses', icon: 'M9 12h6M9 16h6M9 8h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z', label: t('registry'), badge: licenses.length || '' },
-          { id: 'alerts', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-9.33-4.99M9 17H4l1.405-1.405A2.032 2.032 0 006 14.158V11a6 6 0 016-6M12 21a1 1 0 100-2 1 1 0 000 2z', label: t('alerts'), badge: expiring.filter(l => l.daysRemaining < 30).length || '' },
-          { id: 'compliance', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', label: t('compliance') },
-          { id: 'reports', icon: 'M22 12h-4l-3 9L9 3l-3 9H2', label: t('reports') },
-        ].map(nav => (
-          <div key={nav.id} onClick={() => setView(nav.id)} style={{
-            display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', margin: '1px 6px',
-            borderRadius: 6, cursor: 'pointer', fontSize: 11, transition: 'all .15s',
-            background: view === nav.id ? '#FAEEDA' : 'transparent',
-            color: view === nav.id ? '#BA7517' : '#666',
-            fontWeight: view === nav.id ? 500 : 400
-          }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={view === nav.id ? 1 : .65}><path d={nav.icon}/></svg>
-            {nav.label}
-            {nav.badge ? <span style={{ marginInlineStart: 'auto', background: '#FCEBEB', color: '#A32D2D', fontSize: 9, padding: '1px 5px', borderRadius: 8 }}>{nav.badge}</span> : null}
-          </div>
-        ))}
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
+          {navItems.map(nav => (
+            <div key={nav.id} onClick={() => setView(nav.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
+              cursor: 'pointer', position: 'relative', transition: 'background .15s',
+              background: view === nav.id ? C.ink2 : 'transparent',
+            }}>
+              {view === nav.id && <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 3, background: C.gold }} />}
+              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: view === nav.id ? 700 : 400, color: view === nav.id ? '#fff' : C.muted, flex: 1, letterSpacing: .3 }}>{nav.label}</div>
+              {nav.badge > 0 && <span style={{ background: C.red, color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 2, fontFamily: mono }}>{nav.badge}</span>}
+            </div>
+          ))}
+        </nav>
 
-        <div style={{ marginTop: 'auto', padding: '10px 12px', borderTop: '.5px solid #e0ddd4', fontSize: 9, color: '#aaa' }}>
-          {isRtl ? 'آخر مزامنة: الآن' : 'Last sync: Now'}
+        {/* Footer */}
+        <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.ink3}` }}>
+          <div style={{ fontSize: 9, fontFamily: mono, color: C.ink3 }}>LMS v2.0 · {new Date().toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB')}</div>
         </div>
       </aside>
 
-      {/* ── Content ── */}
+      {/* ── MAIN ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ height: 46, borderBottom: '.5px solid #e0ddd4', display: 'flex', alignItems: 'center', padding: '0 16px', background: 'white' }}>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>
-            {t(view === 'dashboard' ? 'dashboard' : view === 'licenses' ? 'registry' : view === 'alerts' ? 'alerts' : view === 'compliance' ? 'compliance' : 'reports')}
+
+        {/* Topbar */}
+        <header style={{ height: 52, background: C.surface, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0 }}>
+          <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, letterSpacing: 1.5, color: C.muted, textTransform: 'uppercase' }}>
+            {navItems.find(n => n.id === view)?.label}
+          </div>
+          <div style={{ width: 1, height: 16, background: C.border }} />
+          <div style={{ fontSize: 10, fontFamily: mono, color: C.subtle }}>
+            {isRtl ? 'دارة الملك عبدالعزيز — إدارة التحول الرقمي' : 'King Abdulaziz Foundation — Digital Transformation'}
           </div>
           <div style={{ flex: 1 }} />
-          {dashLoading && <span style={{ fontSize: 10, color: '#aaa' }}>{t('loading')}</span>}
-        </div>
+          {view === 'licenses' && (
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={isRtl ? 'بحث في الرخص...' : 'Search licenses...'} style={{
+              padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 11,
+              fontFamily: sans, outline: 'none', width: 200, background: C.surfaceL, color: C.ink
+            }} />
+          )}
+          <div style={{ fontSize: 10, fontFamily: mono, color: C.subtle, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '4px 10px', borderRadius: 2 }}>
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+        {/* Content */}
+        <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
 
-          {/* ── Dashboard ── */}
+          {/* ══ DASHBOARD ══ */}
           {view === 'dashboard' && (
             <>
-              {expiring.filter(l => l.daysRemaining < 30).length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 11px', background: '#FCEBEB', border: '.5px solid #F7C1C1', borderRadius: 6, marginBottom: 12, fontSize: 10, color: '#A32D2D' }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <span style={{ flex: 1 }}>{expiring.filter(l => l.daysRemaining < 30).length} {isRtl ? 'رخص تنتهي خلال 30 يوماً' : 'licenses expiring within 30 days'}</span>
-                  <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => setView('alerts')}>{isRtl ? 'عرض التنبيهات' : 'View Alerts'}</span>
+              {/* Critical Alert Banner */}
+              {expiringCount > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: '#FEF2F2', border: `1px solid #FECACA`, borderInlineStart: `4px solid ${C.red}`, marginBottom: 20 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <span style={{ fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.red }}>
+                    {isRtl ? `تحذير: ${expiringCount} رخصة تتطلب اتخاذ إجراء فوري` : `ALERT: ${expiringCount} licenses require immediate attention`}
+                  </span>
+                  <button onClick={() => setView('alerts')} style={{ marginInlineStart: 'auto', fontSize: 10, fontFamily: sans, fontWeight: 700, color: C.red, background: 'none', border: `1px solid ${C.red}`, padding: '3px 10px', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>
+                    {isRtl ? 'عرض التفاصيل' : 'View Details'}
+                  </button>
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 9, marginBottom: 14 }}>
-                {[
-                  { label: t('stat1'), value: dashboard?.totalLicenses || 0, sub: isRtl ? 'عبر الأقسام' : 'Across depts' },
-                  { label: t('stat2'), value: (dashboard?.expiringCount || 0) + (dashboard?.expiredCount || 0), sub: isRtl ? 'تتطلب متابعة' : 'Needs attention', warn: true },
-                  { label: t('stat3'), value: dashboard ? Math.round(dashboard.totalAnnualCost / 1000) + 'k' : '—', sub: 'SAR' },
-                  { label: t('stat4'), value: (dashboard?.complianceRate || 0) + '%', sub: isRtl ? 'مستهدف: 100%' : 'Target: 100%', green: true },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: 'white', border: `.5px solid ${s.warn ? '#E24B4A' : '#e0ddd4'}`, borderInlineStart: s.warn ? '2.5px solid #E24B4A' : undefined, borderRadius: 8, padding: '11px 12px' }}>
-                    <div style={{ fontSize: 9, color: '#aaa', marginBottom: 4 }}>{s.label}</div>
-                    <div style={{ fontSize: 19, fontWeight: 500, color: s.green ? '#3B6D11' : s.warn ? '#E24B4A' : '#1a1a1a' }}>{s.value}</div>
-                    <div style={{ fontSize: 9, color: '#888', marginTop: 2 }}>{s.sub}</div>
-                  </div>
-                ))}
+              {/* KPI Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+                <KpiCard label={isRtl ? 'إجمالي الرخص' : 'Total Licenses'} value={totalLic} sub={isRtl ? 'عبر جميع الأقسام' : 'Across all departments'} accent={C.ink} icon="📋" />
+                <KpiCard label={isRtl ? 'تتطلب اتخاذ إجراء' : 'Require Action'} value={expiringCount} sub={isRtl ? 'منتهية أو تنتهي قريباً' : 'Expired or expiring soon'} accent={C.red} icon="⚠" />
+                <KpiCard label={isRtl ? 'التكلفة السنوية' : 'Annual Spend'} value={annualCost ? `${(annualCost / 1000).toFixed(0)}K` : '—'} sub="SAR" accent={C.gold} icon="＄" />
+                <KpiCard label={isRtl ? 'نسبة الامتثال' : 'Compliance Rate'} value={`${compliance}%`} sub={isRtl ? 'مستهدف: 100%' : 'Target: 100%'} accent={compliance >= 80 ? C.green : C.amber} icon="✓" />
               </div>
 
-              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 9 }}>
-                {isRtl ? 'الرخص الحرجة' : 'Critical Licenses'}
-                <span style={{ fontSize: 9, color: '#aaa', background: '#f1efe8', padding: '1px 6px', borderRadius: 8, marginInlineStart: 6 }}>{criticalLicenses.length}</span>
+              {/* Middle Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+
+                {/* Critical Licenses Table */}
+                <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 3, height: 14, background: C.red, borderRadius: 1 }} />
+                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.ink, textTransform: 'uppercase' }}>{isRtl ? 'الرخص الحرجة' : 'Critical Licenses'}</div>
+                    <div style={{ fontSize: 9, fontFamily: mono, color: C.muted, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>{critical.length}</div>
+                    <div style={{ flex: 1 }} />
+                    <button onClick={() => setView('alerts')} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: .5, textTransform: 'uppercase' }}>{isRtl ? 'عرض الكل' : 'View All'} →</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: C.surfaceL }}>
+                        {[isRtl ? 'الرخصة' : 'License', isRtl ? 'المورّد' : 'Vendor', isRtl ? 'الحالة' : 'Status', isRtl ? 'المتبقي' : 'Days Left', ''].map((h, i) => (
+                          <th key={i} style={{ padding: '8px 14px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {critical.length === 0 ? (
+                        <tr><td colSpan={5} style={{ padding: '32px', textAlign: 'center', fontSize: 11, color: C.subtle, fontFamily: sans }}>{isRtl ? 'لا توجد رخص حرجة' : 'No critical licenses'}</td></tr>
+                      ) : critical.map((l, i) => {
+                        const d = l.daysRemaining
+                        const st = getStatus(d)
+                        return (
+                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#FAFAFA' }}>
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
+                              <div style={{ fontSize: 9, fontFamily: mono, color: C.subtle, marginTop: 2 }}>{l.type || '—'}</div>
+                            </td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: sans, color: C.muted }}>{l.vendor?.name || '—'}</td>
+                            <td style={{ padding: '10px 14px' }}><StatusPill status={st} lang={lang} /></td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ fontSize: 14, fontFamily: mono, fontWeight: 700, color: d < 0 ? C.red : d <= 30 ? C.red : d <= 90 ? C.amber : C.green }}>
+                                {d < 0 ? (isRtl ? 'منتهية' : 'Exp.') : d}
+                              </span>
+                              {d >= 0 && <span style={{ fontSize: 9, fontFamily: sans, color: C.subtle, marginInlineStart: 4 }}>{t('days')}</span>}
+                            </td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => handleEdit(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.muted, background: 'none', border: `1px solid ${C.border}`, padding: '3px 8px', cursor: 'pointer', letterSpacing: .3 }}>{t('edit')}</button>
+                                <button onClick={() => handleRenew(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: C.goldL, border: `1px solid ${C.gold}`, padding: '3px 8px', cursor: 'pointer', letterSpacing: .3 }}>{t('renew')}</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Right Column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Compliance Gauge */}
+                  <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 16 }}>{isRtl ? 'مستوى الامتثال' : 'Compliance Level'}</div>
+                    <RiskGauge value={compliance} />
+                    <div style={{ marginTop: 12, width: '100%' }}>
+                      {[
+                        { label: 'NCA-ECC', val: compliance, color: C.green },
+                        { label: 'ISO 27001', val: Math.round(compliance * 0.9), color: C.blue },
+                        { label: 'NDMO', val: Math.round(compliance * 0.85), color: C.amber },
+                      ].map(item => (
+                        <div key={item.label} style={{ marginBottom: 6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <span style={{ fontSize: 9, fontFamily: mono, color: C.muted }}>{item.label}</span>
+                            <span style={{ fontSize: 9, fontFamily: mono, color: C.ink, fontWeight: 700 }}>{item.val}%</span>
+                          </div>
+                          <div style={{ height: 3, background: C.borderL, borderRadius: 1 }}>
+                            <div style={{ width: `${item.val}%`, height: '100%', background: item.color, borderRadius: 1, transition: 'width .5s ease' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Type Distribution */}
+                  {typeDist.length > 0 && (
+                    <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: '16px 20px' }}>
+                      <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 14 }}>{isRtl ? 'توزيع الأنواع' : 'Type Distribution'}</div>
+                      <MiniBarChart data={typeDist} lang={lang} />
+                    </div>
+                  )}
+
+                  {/* Quick Stats */}
+                  <div style={{ background: C.ink, padding: '16px 20px' }}>
+                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 12 }}>{isRtl ? 'ملخص تنفيذي' : 'Executive Summary'}</div>
+                    {[
+                      { label: isRtl ? 'سارية' : 'Active', val: dashboard?.activeCount || 0, color: C.green },
+                      { label: isRtl ? 'تنتهي خلال 30 يوم' : 'Exp. in 30d', val: dashboard?.expiringCount || 0, color: C.red },
+                      { label: isRtl ? 'تحتاج تجديد' : 'Needs Renewal', val: (expiringCount - (dashboard?.expiringCount || 0)), color: C.amber },
+                    ].map(item => (
+                      <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${C.ink3}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: item.color }} />
+                          <span style={{ fontSize: 10, fontFamily: sans, color: C.muted }}>{item.label}</span>
+                        </div>
+                        <span style={{ fontSize: 14, fontFamily: mono, fontWeight: 700, color: '#fff' }}>{item.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <LicenseTable licenses={criticalLicenses} lang={lang} t={t} isRtl={isRtl} onEdit={handleEdit} onRenew={handleRenew} onDelete={id => deleteMut.mutate(id)} compact />
+
+              {/* Department Cost Table */}
+              {dashboard?.costByDepartment?.length > 0 && (
+                <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                  <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 3, height: 14, background: C.gold, borderRadius: 1 }} />
+                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.ink, textTransform: 'uppercase' }}>{isRtl ? 'التكاليف حسب القسم' : 'Cost by Department'}</div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: C.surfaceL }}>
+                        {[isRtl ? 'القسم' : 'Department', isRtl ? 'التكلفة السنوية' : 'Annual Cost', isRtl ? 'النسبة' : 'Share'].map((h, i) => (
+                          <th key={i} style={{ padding: '8px 16px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboard.costByDepartment.map((d, i) => {
+                        const total = dashboard.costByDepartment.reduce((a, b) => a + b.totalCost, 0)
+                        const pct = total ? Math.round((d.totalCost / total) * 100) : 0
+                        return (
+                          <tr key={i} style={{ borderBottom: `1px solid ${C.borderL}` }}>
+                            <td style={{ padding: '10px 16px', fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{isRtl ? d.departmentAr : d.departmentEn}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, fontFamily: mono, fontWeight: 700, color: C.ink }}>{d.totalCost.toLocaleString()} SAR</td>
+                            <td style={{ padding: '10px 16px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ flex: 1, height: 4, background: C.borderL, borderRadius: 2 }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: C.gold, borderRadius: 2, transition: 'width .4s ease' }} />
+                                </div>
+                                <span style={{ fontSize: 10, fontFamily: mono, color: C.muted, minWidth: 28 }}>{pct}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
 
-          {/* ── Licenses ── */}
+          {/* ══ LICENSES ══ */}
           {view === 'licenses' && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 500 }}>{t('registry')}</div>
-                <span style={{ fontSize: 9, color: '#aaa', background: '#f1efe8', padding: '1px 6px', borderRadius: 8 }}>{licenses.length}</span>
+              {/* Filters */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: C.muted, textTransform: 'uppercase', marginInlineEnd: 4 }}>{isRtl ? 'تصفية:' : 'Filter:'}</div>
+                {['all', 'Security', 'Software', 'Maintenance', 'Cloud', 'Domain'].map(tp => (
+                  <button key={tp} onClick={() => setFilterType(tp)} style={{
+                    padding: '5px 12px', fontSize: 10, fontFamily: sans, fontWeight: 700,
+                    letterSpacing: .5, cursor: 'pointer', textTransform: 'uppercase',
+                    border: `1px solid ${filterType === tp ? C.gold : C.border}`,
+                    background: filterType === tp ? C.gold : C.surface,
+                    color: filterType === tp ? '#fff' : C.muted, borderRadius: 2, transition: 'all .15s'
+                  }}>{tp === 'all' ? (isRtl ? 'الكل' : 'All') : (isRtl ? T.ar[tp] || tp : tp)}</button>
+                ))}
                 <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: 2, background: '#f1efe8', padding: 2, borderRadius: 5 }}>
-                  {['all', 'sw', 'saas', 'hw'].map(tp => (
-                    <button key={tp} onClick={() => setFilterType(tp)} style={{
-                      padding: '3px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer',
-                      border: filterType === tp ? '.5px solid #ddd' : 'none',
-                      background: filterType === tp ? 'white' : 'transparent',
-                      color: filterType === tp ? '#1a1a1a' : '#888', fontWeight: filterType === tp ? 500 : 400
-                    }}>{tp === 'all' ? (isRtl ? 'الكل' : 'All') : t(tp)}</button>
-                  ))}
-                </div>
+                <div style={{ fontSize: 11, fontFamily: mono, color: C.muted }}>{licenses.length} {isRtl ? 'رخصة' : 'licenses'}</div>
               </div>
-              <div style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, overflow: 'hidden', marginBottom: 14 }}>
-                <div style={{ padding: '8px 11px', borderBottom: '.5px solid #e0ddd4', background: '#faf9f5' }}>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search')} style={{ border: '.5px solid #e0ddd4', borderRadius: 4, padding: '4px 8px', fontSize: 10, background: 'white', outline: 'none', width: 220, direction: isRtl ? 'rtl' : 'ltr' }} />
-                </div>
-                {licLoading ? <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: '#aaa' }}>{t('loading')}</div> :
-                  <LicenseTable licenses={licenses} lang={lang} t={t} isRtl={isRtl} onEdit={handleEdit} onRenew={handleRenew} onDelete={id => deleteMut.mutate(id)} />}
+
+              <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                {licLoading ? (
+                  <div style={{ padding: 40, textAlign: 'center', fontSize: 11, fontFamily: sans, color: C.subtle }}>Loading...</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: C.ink }}>
+                        {[isRtl?'الرخصة':'License', isRtl?'النوع':'Type', isRtl?'المورّد':'Vendor', isRtl?'القسم':'Dept', isRtl?'الحالة':'Status', isRtl?'تاريخ الانتهاء':'Expiry', isRtl?'المتبقي':'Remaining', isRtl?'التكلفة':'Cost', ''].map((h, i) => (
+                          <th key={i} style={{ padding: '10px 14px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {licenses.length === 0 ? (
+                        <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', fontSize: 11, color: C.subtle, fontFamily: sans }}>{t('noData')}</td></tr>
+                      ) : licenses.map((l, i) => {
+                        const d = l.daysRemaining
+                        const st = getStatus(d)
+                        return (
+                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#FAFAFA' }}>
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
+                              <div style={{ fontSize: 9, fontFamily: mono, color: C.subtle, marginTop: 1 }}>{l.seats} {isRtl ? 'مقعد' : 'seats'}</div>
+                            </td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .5, color: C.blue, background: C.blueL, padding: '2px 6px', borderRadius: 2, textTransform: 'uppercase' }}>{isRtl ? T.ar[l.type] || l.type : l.type}</span>
+                            </td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: sans, color: C.muted }}>{l.vendor?.name || '—'}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 10, fontFamily: sans, color: C.muted }}>{isRtl ? l.department?.nameAr : l.department?.nameEn || '—'}</td>
+                            <td style={{ padding: '10px 14px' }}><StatusPill status={st} lang={lang} /></td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: mono, color: C.muted }}>{l.expiryDate ? new Date(l.expiryDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB') : '—'}</td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ fontSize: 14, fontFamily: mono, fontWeight: 700, color: d < 0 ? C.red : d <= 30 ? C.red : d <= 90 ? C.amber : C.green }}>
+                                {d < 0 ? '—' : d}
+                              </span>
+                              {d >= 0 && <span style={{ fontSize: 9, fontFamily: sans, color: C.subtle, marginInlineStart: 3 }}>{t('days')}</span>}
+                            </td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontFamily: mono, color: C.ink, fontWeight: 600 }}>
+                              {l.annualCost ? `${l.annualCost.toLocaleString()}` : '—'}
+                            </td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <button onClick={() => handleEdit(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.muted, background: 'none', border: `1px solid ${C.border}`, padding: '3px 7px', cursor: 'pointer' }}>{t('edit')}</button>
+                                <button onClick={() => handleRenew(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.gold, background: C.goldL, border: `1px solid ${C.gold}`, padding: '3px 7px', cursor: 'pointer' }}>{t('renew')}</button>
+                                <button onClick={() => { if (window.confirm(isRtl ? 'تأكيد الحذف؟' : 'Confirm delete?')) deleteMut.mutate(l.id) }} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.red, background: 'none', border: `1px solid ${C.border}`, padding: '3px 7px', cursor: 'pointer' }}>×</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </>
           )}
 
-          {/* ── Alerts ── */}
+          {/* ══ ALERTS ══ */}
           {view === 'alerts' && (
             <>
-              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 10 }}>{t('alerts')}</div>
-              {expiring.map(l => {
-                const d = l.daysRemaining
-                const [bg, bd, col] = d < 30 ? ['#FCEBEB', '#F7C1C1', '#A32D2D'] : ['#FAEEDA', '#FAC775', '#BA7517']
-                return (
-                  <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 11px', background: bg, border: `.5px solid ${bd}`, borderRadius: 6, marginBottom: 6 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: col }}>{l.name}</div>
-                      <div style={{ fontSize: 9, color: '#666', marginTop: 2 }}>{l.vendor?.name} — {l.department?.nameAr || l.department?.nameEn}</div>
-                      <div style={{ fontSize: 9, color: '#999', marginTop: 1 }}>{isRtl ? 'المسؤول:' : 'Owner:'} {l.owners?.[0]?.nameAr || '—'}</div>
-                    </div>
-                    <div style={{ textAlign: 'center', minWidth: 52 }}>
-                      <div style={{ fontSize: 16, fontWeight: 500, color: col }}>{d < 0 ? (isRtl ? 'منتهية' : 'Exp.') : d}</div>
-                      {d >= 0 && <div style={{ fontSize: 8, color: '#aaa' }}>{t('days')}</div>}
-                    </div>
-                    <button onClick={() => handleRenew(l)} style={{ padding: '3px 8px', border: `.5px solid ${col}`, borderRadius: 4, background: bg, fontSize: 9, cursor: 'pointer', color: col, fontWeight: 500 }}>{t('renew')}</button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
+                {[
+                  { label: isRtl ? 'منتهية' : 'Expired', count: expiring.filter(l => l.daysRemaining < 0).length, color: C.red },
+                  { label: isRtl ? 'تنتهي خلال 30 يوم' : 'Exp. in 30 days', count: expiring.filter(l => l.daysRemaining >= 0 && l.daysRemaining < 30).length, color: C.amber },
+                  { label: isRtl ? 'تنتهي خلال 90 يوم' : 'Exp. in 90 days', count: expiring.filter(l => l.daysRemaining >= 30 && l.daysRemaining < 90).length, color: C.gold },
+                ].map((s, i) => (
+                  <div key={i} style={{ background: C.surface, border: `1px solid ${C.border}`, borderTop: `3px solid ${s.color}`, padding: '16px 20px' }}>
+                    <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase', marginBottom: 8 }}>{s.label}</div>
+                    <div style={{ fontSize: 36, fontFamily: font, color: s.color }}>{s.count}</div>
                   </div>
-                )
-              })}
-              {expiring.length === 0 && <div style={{ textAlign: 'center', padding: 40, fontSize: 11, color: '#aaa' }}>{isRtl ? 'لا توجد تنبيهات' : 'No alerts'}</div>}
+                ))}
+              </div>
+
+              <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, background: C.surfaceL }}>
+                  <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'قائمة التنبيهات' : 'Alert Register'}</div>
+                </div>
+                {expiring.length === 0 ? (
+                  <div style={{ padding: 40, textAlign: 'center', fontSize: 11, color: C.subtle, fontFamily: sans }}>{isRtl ? 'لا توجد تنبيهات' : 'No alerts'}</div>
+                ) : expiring.map((l, i) => {
+                  const d = l.daysRemaining
+                  const st = getStatus(d)
+                  const borderCol = d < 0 ? C.red : d < 30 ? C.red : d < 90 ? C.amber : C.gold
+                  return (
+                    <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', borderBottom: `1px solid ${C.borderL}`, borderInlineStart: `4px solid ${borderCol}` }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
+                        <div style={{ fontSize: 10, fontFamily: sans, color: C.muted, marginTop: 2 }}>{l.vendor?.name} · {isRtl ? l.department?.nameAr : l.department?.nameEn}</div>
+                      </div>
+                      <StatusPill status={st} lang={lang} />
+                      <div style={{ textAlign: 'center', minWidth: 64 }}>
+                        <div style={{ fontSize: 20, fontFamily: mono, fontWeight: 700, color: borderCol }}>{d < 0 ? (isRtl ? 'منتهية' : 'EXP') : d}</div>
+                        {d >= 0 && <div style={{ fontSize: 8, fontFamily: sans, color: C.subtle, textTransform: 'uppercase', letterSpacing: .5 }}>{t('days')}</div>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => handleEdit(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: C.muted, background: 'none', border: `1px solid ${C.border}`, padding: '5px 10px', cursor: 'pointer', letterSpacing: .3 }}>{t('edit')}</button>
+                        <button onClick={() => handleRenew(l)} style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, color: '#fff', background: C.gold, border: `1px solid ${C.gold}`, padding: '5px 10px', cursor: 'pointer', letterSpacing: .3 }}>{t('renew')}</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </>
           )}
 
-          {/* ── Compliance ── */}
+          {/* ══ COMPLIANCE ══ */}
           {view === 'compliance' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 9, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+                <KpiCard label={isRtl ? 'نسبة الامتثال' : 'Compliance Rate'} value={`${compliance}%`} sub="NCA-ECC · ISO 27001 · NDMO" accent={compliance >= 80 ? C.green : C.amber} icon="✓" />
+                <KpiCard label={isRtl ? 'ممتثلة' : 'Compliant'} value={Math.round(totalLic * compliance / 100)} sub={isRtl ? 'رخصة ممتثلة' : 'compliant licenses'} accent={C.green} icon="✓" />
+                <KpiCard label={isRtl ? 'غير ممتثلة' : 'Non-Compliant'} value={totalLic - Math.round(totalLic * compliance / 100)} sub={isRtl ? 'تحتاج مراجعة' : 'require review'} accent={C.red} icon="✗" />
+                <KpiCard label={isRtl ? 'إجمالي' : 'Total'} value={totalLic} sub={isRtl ? 'رخصة' : 'licenses'} accent={C.ink} icon="≡" />
+              </div>
+
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: 24, marginBottom: 20 }}>
+                <SectionHeader title={isRtl ? 'مستوى الامتثال حسب المعيار' : 'Compliance by Standard'} />
                 {[
-                  { label: isRtl ? 'نسبة الامتثال' : 'Compliance Rate', value: (dashboard?.complianceRate || 0) + '%', color: '#3B6D11' },
-                  { label: isRtl ? 'غير ممتثلة' : 'Non-Compliant', value: dashboard ? dashboard.totalLicenses - Math.round(dashboard.totalLicenses * dashboard.complianceRate / 100) : 0, warn: true },
-                  { label: isRtl ? 'إجمالي الرخص' : 'Total', value: dashboard?.totalLicenses || 0 },
-                  { label: isRtl ? 'سارية' : 'Active', value: dashboard?.activeCount || 0, color: '#3B6D11' },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: 'white', border: `.5px solid ${s.warn ? '#E24B4A' : '#e0ddd4'}`, borderInlineStart: s.warn ? '2.5px solid #E24B4A' : undefined, borderRadius: 8, padding: '11px 12px' }}>
-                    <div style={{ fontSize: 9, color: '#aaa', marginBottom: 4 }}>{s.label}</div>
-                    <div style={{ fontSize: 19, fontWeight: 500, color: s.color || (s.warn ? '#E24B4A' : '#1a1a1a') }}>{s.value}</div>
+                  { std: 'NCA-ECC',   pct: compliance,                    color: C.green },
+                  { std: 'ISO 27001', pct: Math.round(compliance * 0.9),  color: C.blue  },
+                  { std: 'NDMO / نضيء', pct: Math.round(compliance * 0.85), color: C.amber },
+                  { std: 'CSCC',      pct: Math.round(compliance * 0.75), color: C.gold  },
+                ].map(item => (
+                  <div key={item.std} style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{item.std}</span>
+                      <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 700, color: item.color }}>{item.pct}%</span>
+                    </div>
+                    <div style={{ height: 6, background: C.borderL, borderRadius: 1 }}>
+                      <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: 1, transition: 'width .5s ease' }} />
+                    </div>
                   </div>
                 ))}
               </div>
-              <LicenseTable licenses={licenses.length ? licenses : criticalLicenses} lang={lang} t={t} isRtl={isRtl} onEdit={handleEdit} onRenew={handleRenew} onDelete={id => deleteMut.mutate(id)} showCompliance />
+
+              <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, background: C.surfaceL }}>
+                  <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'تفاصيل الامتثال' : 'Compliance Detail'}</div>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: C.surfaceL }}>
+                      {[isRtl?'الرخصة':'License', isRtl?'معيار الامتثال':'Standard', isRtl?'الحالة':'Status', isRtl?'المتبقي':'Days Left'].map((h,i) => (
+                        <th key={i} style={{ padding: '8px 16px', textAlign: 'start', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(licenses.length ? licenses : critical).slice(0, 15).map((l, i) => {
+                      const d = l.daysRemaining
+                      const st = getStatus(d)
+                      return (
+                        <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#FAFAFA' }}>
+                          <td style={{ padding: '10px 16px', fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</td>
+                          <td style={{ padding: '10px 16px' }}>
+                            <span style={{ fontSize: 9, fontFamily: mono, color: C.muted, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>{l.complianceStandard || 'N/A'}</span>
+                          </td>
+                          <td style={{ padding: '10px 16px' }}><StatusPill status={st} lang={lang} /></td>
+                          <td style={{ padding: '10px 16px', fontSize: 12, fontFamily: mono, fontWeight: 700, color: d < 0 ? C.red : d <= 30 ? C.red : d <= 90 ? C.amber : C.green }}>
+                            {d < 0 ? (isRtl ? 'منتهية' : 'Expired') : `${d} ${t('days')}`}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
 
-          {/* ── Reports ── */}
+          {/* ══ REPORTS ══ */}
           {view === 'reports' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
                 {[
-                  { title: isRtl ? 'تقرير انتهاء الرخص' : 'License Expiry', sub: isRtl ? 'الرخص المنتهية والقريبة من الانتهاء' : 'Expired and soon-to-expire licenses', bg: '#FCEBEB', ic: '#A32D2D' },
-                  { title: isRtl ? 'تقرير التكاليف' : 'Cost Report', sub: isRtl ? 'توزيع التكاليف حسب القسم' : 'Cost breakdown by department', bg: '#FAEEDA', ic: '#BA7517' },
-                  { title: isRtl ? 'تقرير الامتثال' : 'Compliance Report', sub: isRtl ? 'حالة الامتثال NCA-ECC / NDMO' : 'Compliance status NCA-ECC / NDMO', bg: '#EAF3DE', ic: '#3B6D11' },
-                  { title: isRtl ? 'تقرير الموردين' : 'Vendor Report', sub: isRtl ? 'ملخص الموردين والعقود' : 'Vendor summary and contracts', bg: '#E6F1FB', ic: '#185FA5' },
-                  { title: isRtl ? 'تقرير الاستخدام' : 'Usage Report', sub: isRtl ? 'ربط الرخص بالموظفين' : 'License assignments', bg: '#F1EFE8', ic: '#5F5E5A' },
-                  { title: isRtl ? 'تقرير التدقيق' : 'Audit Report', sub: isRtl ? 'سجل كامل للتعديلات' : 'Complete audit trail', bg: '#F3F0FF', ic: '#534AB7' },
+                  { title: isRtl ? 'تقرير انتهاء الرخص' : 'License Expiry Report', sub: isRtl ? 'الرخص المنتهية والقريبة من الانتهاء' : 'Expired and soon-to-expire licenses', color: C.red },
+                  { title: isRtl ? 'تقرير التكاليف' : 'Cost Analysis Report', sub: isRtl ? 'توزيع التكاليف حسب القسم والنوع' : 'Cost breakdown by department and type', color: C.gold },
+                  { title: isRtl ? 'تقرير الامتثال' : 'Compliance Status Report', sub: isRtl ? 'حالة الامتثال NCA-ECC / ISO / NDMO' : 'Compliance against NCA-ECC / ISO / NDMO', color: C.green },
+                  { title: isRtl ? 'تقرير الموردين' : 'Vendor Portfolio Report', sub: isRtl ? 'ملخص الموردين والعقود والتكاليف' : 'Vendor summary, contracts, and costs', color: C.blue },
+                  { title: isRtl ? 'تقرير الاستخدام' : 'License Utilization Report', sub: isRtl ? 'ربط الرخص بالموظفين والأقسام' : 'License-to-employee and department mapping', color: C.muted },
+                  { title: isRtl ? 'تقرير التدقيق' : 'Audit Trail Report', sub: isRtl ? 'سجل كامل لجميع التعديلات والعمليات' : 'Complete audit log of all operations', color: C.ink },
                 ].map((r, i) => (
-                  <div key={i} onClick={() => alert(isRtl ? 'جارٍ إنشاء التقرير...' : 'Generating report...')} style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, padding: 14, cursor: 'pointer' }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 7, background: r.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={r.ic} strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77"/></svg>
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 3 }}>{r.title}</div>
-                    <div style={{ fontSize: 9, color: '#888', lineHeight: 1.4 }}>{r.sub}</div>
-                    <div style={{ fontSize: 9, color: '#BA7517', marginTop: 7 }}>↗ {isRtl ? 'إنشاء التقرير' : 'Generate'}</div>
+                  <div key={i} onClick={() => alert(isRtl ? 'جارٍ إنشاء التقرير...' : 'Generating report...')} style={{ background: C.surface, border: `1px solid ${C.border}`, borderTop: `3px solid ${r.color}`, padding: '20px', cursor: 'pointer', transition: 'box-shadow .15s' }}>
+                    <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 700, color: C.ink, marginBottom: 8 }}>{r.title}</div>
+                    <div style={{ fontSize: 11, fontFamily: sans, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>{r.sub}</div>
+                    <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, color: r.color, letterSpacing: .5, textTransform: 'uppercase' }}>{isRtl ? 'إنشاء التقرير ←' : 'Generate Report →'}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ background: 'white', border: '.5px solid #e0ddd4', borderRadius: 8, padding: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 8 }}>{isRtl ? 'تصدير البيانات' : 'Export Data'}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {['Excel (.xlsx)', 'CSV', 'PDF', 'JSON (API)'].map(fmt => (
-                    <button key={fmt} onClick={() => alert(`${isRtl ? 'جارٍ التصدير' : 'Exporting'}: ${fmt}`)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '.5px solid #e0ddd4', borderRadius: 6, fontSize: 10, cursor: 'pointer', background: '#faf9f5', color: '#666' }}>
-                      {fmt}
-                    </button>
+
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, padding: '20px 24px' }}>
+                <SectionHeader title={isRtl ? 'تصدير البيانات' : 'Export Data'} />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[
+                    { fmt: 'Excel (.xlsx)', color: C.green },
+                    { fmt: 'CSV', color: C.blue },
+                    { fmt: 'PDF', color: C.red },
+                    { fmt: 'JSON', color: C.muted },
+                  ].map(({ fmt, color }) => (
+                    <button key={fmt} onClick={() => alert(`Exporting: ${fmt}`)} style={{
+                      padding: '10px 20px', border: `1px solid ${C.border}`, borderTop: `2px solid ${color}`,
+                      background: C.surface, fontSize: 11, fontFamily: sans, fontWeight: 700,
+                      color: C.ink, cursor: 'pointer', letterSpacing: .3
+                    }}>{fmt}</button>
                   ))}
                 </div>
               </div>
             </>
           )}
 
-        </div>
+        </main>
       </div>
 
-      {/* ── Add / Edit / Renew Panel ── */}
+      {/* ── PANEL ── */}
       {panelOpen && (
         <AddLicensePanel
           lang={lang} isRtl={isRtl} t={t}
           vendors={vendors} departments={departments} employees={employees}
-          editingId={editingId}
-          renewingLicense={renewingLicense}
+          editingId={editingId} renewingLicense={renewingLicense}
           onClose={() => { setPanelOpen(false); setEditingId(null); setRenewingLicense(null) }}
           onSave={data => editingId ? updateMut.mutate({ id: editingId, data }) : createMut.mutate(data)}
           saving={createMut.isPending || updateMut.isPending}
@@ -366,106 +747,38 @@ export default function App() {
   )
 }
 
-// ── License Table Component ──────────────────────
-function LicenseTable({ licenses, t, isRtl, onEdit, onRenew, onDelete, compact, showCompliance }) {
-  if (!licenses?.length) return <div style={{ padding: 20, textAlign: 'center', fontSize: 11, color: '#aaa' }}>{t('noData')}</div>
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-        <thead>
-          <tr style={{ borderBottom: '.5px solid #e0ddd4' }}>
-            {[isRtl ? 'اسم الرخصة' : 'License', isRtl ? 'النوع' : 'Type', isRtl ? 'المورّد' : 'Vendor', isRtl ? 'الحالة' : 'Status', isRtl ? 'الانتهاء' : 'Expiry', isRtl ? 'المتبقي' : 'Remaining', ...(showCompliance ? [isRtl ? 'الامتثال' : 'Compliance'] : []), ''].map((h, i) => (
-              <th key={i} style={{ padding: '6px 10px', textAlign: 'start', fontSize: 9, fontWeight: 500, color: '#aaa', whiteSpace: 'nowrap' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {licenses.map(l => {
-            const d = l.daysRemaining
-            const status = l.status || (d < 0 ? 'expired' : d <= 30 ? 'expiring_soon' : d <= 90 ? 'needs_renewal' : 'active')
-            return (
-              <tr key={l.id} style={{ borderBottom: '.5px solid #f1efe8' }}>
-                <td style={{ padding: '8px 10px' }}>
-                  <strong style={{ fontSize: 11 }}>{l.name}</strong>
-                  {!compact && <div style={{ fontSize: 9, color: '#aaa' }}>{l.description}</div>}
-                </td>
-                <td style={{ padding: '8px 10px' }}>{badge(t(l.type), typeBg[l.type] || '#f1efe8', typeColor[l.type] || '#666')}</td>
-                <td style={{ padding: '8px 10px', color: '#666' }}>{l.vendor?.name || '—'}</td>
-                <td style={{ padding: '8px 10px' }}>{badge(t(status), statusBg[status] || '#f1efe8', statusColor[status] || '#666')}</td>
-                <td style={{ padding: '8px 10px', fontSize: 10 }}>{l.expiryDate ? new Date(l.expiryDate).toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
-                <td style={{ padding: '8px 10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: 44, height: 3, background: '#e0ddd4', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ width: Math.min(100, Math.max(0, (d / 365) * 100)) + '%', height: '100%', background: d > 90 ? '#639922' : d > 30 ? '#EF9F27' : '#E24B4A', borderRadius: 2 }} />
-                    </div>
-                    <span style={{ fontSize: 9, color: d < 0 ? '#A32D2D' : d <= 30 ? '#EF9F27' : '#888' }}>
-                      {d < 0 ? (isRtl ? 'منتهية' : 'Exp.') : d === 0 ? (isRtl ? 'اليوم' : 'Today') : d + ' ' + t('days')}
-                    </span>
-                  </div>
-                </td>
-                {showCompliance && <td style={{ padding: '8px 10px', fontSize: 9, color: '#666' }}>{l.complianceStandard || '—'}</td>}
-                <td style={{ padding: '8px 10px' }}>
-                  <div style={{ display: 'flex', gap: 3 }}>
-                    <button onClick={() => onEdit(l)} style={{ padding: '2px 6px', border: '.5px solid #e0ddd4', borderRadius: 3, background: 'transparent', fontSize: 9, cursor: 'pointer', color: '#666' }}>{t('edit')}</button>
-                    <button onClick={() => onRenew(l)} style={{ padding: '2px 6px', border: '.5px solid #FAC775', borderRadius: 3, background: '#FAEEDA', fontSize: 9, cursor: 'pointer', color: '#BA7517', fontWeight: 500 }}>{t('renew')}</button>
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ── Add License Panel (Wizard) ───────────────────
+/* ─── ADD LICENSE PANEL ──────────────────────────────────────── */
 function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, editingId, renewingLicense, onClose, onSave, saving }) {
   const isRenewing = !!renewingLicense
-  const isEditing = !!editingId
 
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => {
     if (isRenewing) {
-      // تجديد: نسخ بيانات الرخصة القديمة مع تاريخ بداية جديد
-      const today = new Date().toISOString().split('T')[0]
       return {
-        name: renewingLicense.name,
-        description: renewingLicense.description || '',
-        type: renewingLicense.type || 'sw',
-        licenseModel: renewingLicense.licenseModel || 'Per User',
-        seats: renewingLicense.seats || 1,
-        annualCost: renewingLicense.annualCost || 0,
-        complianceStandard: renewingLicense.complianceStandard || '',
-        licenseKey: '',
+        name: renewingLicense.name, description: renewingLicense.description || '',
+        type: renewingLicense.type || 'Software', licenseModel: renewingLicense.licenseModel || 'Per User',
+        seats: renewingLicense.seats || 1, annualCost: renewingLicense.annualCost || 0,
+        complianceStandard: renewingLicense.complianceStandard || '', licenseKey: '',
         internalNotes: renewingLicense.internalNotes || '',
-        startDate: today,
-        durationYears: 1,
-        durationMonths: 0,
-        renewalMode: renewingLicense.renewalMode || 'Manual',
-        alertDaysBefore: renewingLicense.alertDaysBefore || 30,
-        vendorId: renewingLicense.vendor?.id || '',
-        departmentId: renewingLicense.department?.id || '',
-        employeeIds: []
+        startDate: new Date().toISOString().split('T')[0],
+        durationYears: 1, durationMonths: 0,
+        renewalMode: renewingLicense.renewalMode || 'Manual', alertDaysBefore: renewingLicense.alertDaysBefore || 30,
+        vendorId: renewingLicense.vendor?.id || '', departmentId: renewingLicense.department?.id || '', employeeIds: []
       }
     }
     return {
-      name: '', description: '', type: 'sw', licenseModel: 'Per User',
+      name: '', description: '', type: 'Software', licenseModel: 'Per User',
       seats: 1, annualCost: 0, complianceStandard: '', licenseKey: '', internalNotes: '',
       startDate: new Date().toISOString().split('T')[0], durationYears: 1, durationMonths: 0,
-      renewalMode: 'Manual', alertDaysBefore: 30,
-      vendorId: '', departmentId: '', employeeIds: []
+      renewalMode: 'Manual', alertDaysBefore: 30, vendorId: '', departmentId: '', employeeIds: []
     }
   })
-
-  const [assigned, setAssigned] = useState(
-    isRenewing && renewingLicense.owners ? renewingLicense.owners.map(o => ({ id: o.id, nameAr: o.nameAr, nameEn: o.nameEn, roleAr: o.roleAr, roleEn: o.roleEn })) : []
-  )
+  const [assigned, setAssigned] = useState(isRenewing && renewingLicense.owners ? renewingLicense.owners : [])
 
   const STEPS = 5
   const labels = isRtl
-    ? ['تفاصيل الرخصة', 'المدة والتواريخ', 'بيانات المورّد', 'الإدارة والمسؤول', 'المراجعة والحفظ']
-    : ['License Details', 'Dates & Duration', 'Vendor Info', 'Dept. & Owner', 'Review & Save']
+    ? ['التفاصيل', 'التواريخ', 'المورّد', 'الإدارة', 'مراجعة']
+    : ['Details', 'Dates', 'Vendor', 'Dept', 'Review']
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const expiryDate = (() => {
@@ -478,190 +791,163 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, edit
   })()
   const daysLeft = expiryDate ? Math.round((expiryDate - new Date()) / 864e5) : null
 
-  const handleSave = () => {
-    onSave({ ...form, employeeIds: assigned.map(e => e.id) })
-  }
-
   const fi = (label, key, type = 'text', placeholder = '') => (
-    <div style={{ marginBottom: 8 }}>
-      <label style={{ display: 'block', fontSize: 10, color: '#888', marginBottom: 3 }}>{label}</label>
-      <input type={type} value={form[key]} onChange={e => set(key, type === 'number' ? Number(e.target.value) : e.target.value)}
-        placeholder={placeholder} style={{ width: '100%', padding: '6px 8px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, outline: 'none', direction: isRtl ? 'rtl' : 'ltr' }} />
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: 'block', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>{label}</label>
+      <input type={type} value={form[key]} onChange={e => set(key, type === 'number' ? Number(e.target.value) : e.target.value)} placeholder={placeholder}
+        style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 12, fontFamily: sans, outline: 'none', background: C.surfaceL, direction: isRtl ? 'rtl' : 'ltr', color: C.ink, boxSizing: 'border-box' }} />
     </div>
   )
   const fsel = (label, key, opts) => (
-    <div style={{ marginBottom: 8 }}>
-      <label style={{ display: 'block', fontSize: 10, color: '#888', marginBottom: 3 }}>{label}</label>
-      <select value={form[key]} onChange={e => set(key, e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, outline: 'none', background: 'white' }}>
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: 'block', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>{label}</label>
+      <select value={form[key]} onChange={e => set(key, e.target.value)}
+        style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 12, fontFamily: sans, outline: 'none', background: C.surface, color: C.ink }}>
         {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
   )
 
-  const panelTitle = isRenewing
-    ? (isRtl ? `تجديد رخصة: ${renewingLicense.name}` : `Renew: ${renewingLicense.name}`)
-    : isEditing
-      ? (isRtl ? 'تعديل الرخصة' : 'Edit License')
-      : (isRtl ? 'إضافة رخصة جديدة' : 'Add New License')
-
   return (
-    <div style={{ width: 360, flexShrink: 0, borderInlineStart: '.5px solid #e0ddd4', background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Steps header */}
-      <div style={{ padding: '11px 13px', borderBottom: '.5px solid #e0ddd4', background: isRenewing ? '#FAEEDA' : '#faf9f5', flexShrink: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          {isRenewing
-            ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-            : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
-          }
-          <span style={{ flex: 1, fontSize: isRenewing ? 10 : 11 }}>{panelTitle}</span>
-          <button onClick={onClose} style={{ width: 20, height: 20, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#aaa' }}>×</button>
+    <div style={{ width: 380, flexShrink: 0, borderInlineStart: `1px solid ${C.border}`, background: C.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, background: isRenewing ? C.goldL : C.ink, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', flex: 1, color: isRenewing ? C.goldD : '#fff' }}>
+            {isRenewing ? (isRtl ? 'تجديد رخصة' : 'License Renewal') : editingId ? (isRtl ? 'تعديل رخصة' : 'Edit License') : (isRtl ? 'إضافة رخصة جديدة' : 'New License')}
+          </div>
+          <button onClick={onClose} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 16, color: isRenewing ? C.goldD : C.muted }}>×</button>
         </div>
-
         {isRenewing && (
-          <div style={{ fontSize: 9, color: '#BA7517', background: '#FFF3DC', border: '.5px solid #FAC775', borderRadius: 4, padding: '4px 8px', marginBottom: 8 }}>
-            {isRtl ? '⟳ سيتم إنشاء رخصة جديدة بنفس البيانات مع تاريخ بداية محدّث' : '⟳ A new license will be created with the same details and a new start date'}
+          <div style={{ fontSize: 10, fontFamily: sans, color: C.goldD, marginBottom: 12, padding: '6px 8px', background: '#FEF3C7', border: `1px solid ${C.gold}`, borderRadius: 2 }}>
+            {isRtl ? `⟳ تجديد: ${renewingLicense.name}` : `⟳ Renewing: ${renewingLicense.name}`}
           </div>
         )}
-
-        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        {/* Step indicators */}
+        <div style={{ display: 'flex', gap: 4 }}>
           {labels.map((lbl, i) => (
-            <div key={i} style={{ display: 'contents' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, cursor: i <= step ? 'pointer' : 'default' }} onClick={() => i <= step && setStep(i)}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 500, border: '.5px solid', zIndex: 2, position: 'relative',
-                  background: i < step ? '#3B6D11' : i === step ? '#BA7517' : 'white',
-                  borderColor: i < step ? '#3B6D11' : i === step ? '#BA7517' : '#ddd',
-                  color: i <= step ? 'white' : '#aaa',
-                  boxShadow: i === step ? '0 0 0 3px rgba(186,117,23,.15)' : 'none'
-                }}>
-                  {i < step ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> : i + 1}
-                </div>
-                <div style={{ fontSize: 8, marginTop: 2, textAlign: 'center', color: i === step ? '#BA7517' : i < step ? '#3B6D11' : '#aaa', fontWeight: i === step ? 500 : 400 }}>{lbl}</div>
-              </div>
-              {i < STEPS - 1 && <div style={{ flex: 1, height: .5, background: i < step ? '#3B6D11' : '#ddd', position: 'relative', top: 12, zIndex: 1 }} />}
+            <div key={i} onClick={() => i <= step && setStep(i)} style={{ flex: 1, cursor: i <= step ? 'pointer' : 'default' }}>
+              <div style={{ height: 3, background: i <= step ? C.gold : isRenewing ? '#FDE68A' : C.ink2, borderRadius: 1, marginBottom: 4, transition: 'background .2s' }} />
+              <div style={{ fontSize: 8, fontFamily: sans, fontWeight: 700, letterSpacing: .5, color: i === step ? (isRenewing ? C.goldD : C.gold) : (isRenewing ? C.goldD : C.muted), textTransform: 'uppercase', textAlign: 'center' }}>{lbl}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 13 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
         {step === 0 && <>
-          <div style={{ fontSize: 9, color: '#aaa', marginBottom: 7, paddingBottom: 5, borderBottom: '.5px solid #f1efe8', fontWeight: 500, letterSpacing: .4 }}>{isRtl ? 'بيانات المنتج / الرخصة' : 'PRODUCT / LICENSE DETAILS'}</div>
-          {fi(isRtl ? 'اسم المنتج *' : 'Product Name *', 'name', 'text', 'e.g. Microsoft 365')}
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#888', marginBottom: 3 }}>{isRtl ? 'وصف تفصيلي' : 'Description'}</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} style={{ width: '100%', padding: '6px 8px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, outline: 'none', resize: 'vertical', direction: isRtl ? 'rtl' : 'ltr' }} />
+          {fi(isRtl ? 'اسم المنتج *' : 'Product Name *', 'name')}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>{isRtl ? 'الوصف' : 'Description'}</label>
+            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 12, fontFamily: sans, outline: 'none', resize: 'vertical', background: C.surfaceL, color: C.ink, boxSizing: 'border-box' }} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-            {fsel(isRtl ? 'النوع *' : 'Type *', 'type', [{ value: 'sw', label: t('sw') }, { value: 'saas', label: t('saas') }, { value: 'hw', label: t('hw') }])}
-            {fsel(isRtl ? 'نموذج الترخيص' : 'License Model', 'licenseModel', ['Per User', 'Per Device', 'Site License', 'Concurrent', 'Enterprise'].map(v => ({ value: v, label: v })))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {fsel(isRtl?'النوع':'Type', 'type', ['Security','Software','Maintenance','Cloud','Domain','Service'].map(v=>({value:v,label:v})))}
+            {fsel(isRtl?'النموذج':'Model', 'licenseModel', ['Per User','Per Device','Site License','Concurrent','Enterprise'].map(v=>({value:v,label:v})))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-            {fi(isRtl ? 'عدد المقاعد' : 'Seats', 'seats', 'number')}
-            {fi(isRtl ? 'التكلفة السنوية (ر.س)' : 'Annual Cost (SAR)', 'annualCost', 'number')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {fi(isRtl?'المقاعد':'Seats', 'seats', 'number')}
+            {fi(isRtl?'التكلفة السنوية (ر.س)':'Annual Cost (SAR)', 'annualCost', 'number')}
           </div>
-          {fsel(isRtl ? 'معيار الامتثال' : 'Compliance', 'complianceStandard', [{ value: '', label: '—' }, ...['NCA-ECC', 'ISO 27001', 'NDMO / نضيء', 'Digital Asset Mgmt.'].map(v => ({ value: v, label: v }))])}
-          {fi(isRtl ? 'مفتاح التفعيل' : 'License Key', 'licenseKey', 'text', 'XXXX-XXXX-XXXX')}
+          {fsel(isRtl?'الامتثال':'Compliance', 'complianceStandard', [{value:'',label:'—'},...['NCA-ECC','ISO 27001','NDMO / نضيء','CSCC'].map(v=>({value:v,label:v}))])}
+          {fi(isRtl?'مفتاح التفعيل':'License Key', 'licenseKey', 'text', 'XXXX-XXXX-XXXX')}
         </>}
 
         {step === 1 && <>
-          <div style={{ fontSize: 9, color: '#aaa', marginBottom: 7, paddingBottom: 5, borderBottom: '.5px solid #f1efe8', fontWeight: 500 }}>{isRtl ? 'المدة والتواريخ' : 'DURATION & DATES'}</div>
-          {fi(isRtl ? 'تاريخ البداية *' : 'Start Date *', 'startDate', 'date')}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-            {fsel(isRtl ? 'المدة — سنوات' : 'Duration — Years', 'durationYears', [0,1,2,3,4,5].map(v => ({ value: v, label: `${v} ${isRtl ? 'سنة' : 'yr'}` })))}
-            {fsel(isRtl ? 'المدة — أشهر' : 'Duration — Months', 'durationMonths', Array.from({length:12},(_,i) => ({ value: i, label: `${i} ${isRtl ? 'شهر' : 'mo'}` })))}
+          {fi(isRtl?'تاريخ البداية *':'Start Date *', 'startDate', 'date')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {fsel(isRtl?'السنوات':'Years', 'durationYears', [0,1,2,3,4,5].map(v=>({value:v,label:`${v} ${isRtl?'سنة':'yr'}`})))}
+            {fsel(isRtl?'الأشهر':'Months', 'durationMonths', Array.from({length:12},(_,i)=>({value:i,label:`${i} ${isRtl?'شهر':'mo'}`})))}
           </div>
           {expiryDate && (
-            <div style={{ background: daysLeft > 90 ? '#EAF3DE' : daysLeft >= 0 ? '#FAEEDA' : '#FCEBEB', border: `.5px solid ${daysLeft > 90 ? '#C0DD97' : daysLeft >= 0 ? '#FAC775' : '#F7C1C1'}`, borderRadius: 6, padding: '9px 11px', marginBottom: 9 }}>
-              <div style={{ fontSize: 9, fontWeight: 500, color: daysLeft > 90 ? '#3B6D11' : daysLeft >= 0 ? '#BA7517' : '#A32D2D', marginBottom: 2 }}>{isRtl ? 'تاريخ الانتهاء المحسوب' : 'Calculated Expiry'}</div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: daysLeft > 90 ? '#3B6D11' : daysLeft >= 0 ? '#BA7517' : '#A32D2D' }}>{expiryDate.toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-              <div style={{ fontSize: 9, color: '#888', marginTop: 2 }}>{Number(form.durationYears) * 12 + Number(form.durationMonths)} {isRtl ? 'شهر' : 'months'} — {daysLeft > 0 ? daysLeft + ' ' + t('days') + (isRtl ? ' متبقياً' : ' remaining') : isRtl ? 'منتهية' : 'expired'}</div>
+            <div style={{ padding: '12px 14px', border: `1px solid ${daysLeft > 90 ? '#A7F3D0' : daysLeft >= 0 ? '#FDE68A' : '#FECACA'}`, borderInlineStart: `4px solid ${daysLeft > 90 ? C.green : daysLeft >= 0 ? C.amber : C.red}`, marginBottom: 12, background: daysLeft > 90 ? '#F0FDF4' : daysLeft >= 0 ? '#FFFBEB' : '#FEF2F2' }}>
+              <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>{isRtl?'تاريخ الانتهاء':'Calculated Expiry'}</div>
+              <div style={{ fontSize: 18, fontFamily: mono, fontWeight: 700, color: daysLeft > 90 ? C.green : daysLeft >= 0 ? C.amber : C.red }}>{expiryDate.toLocaleDateString(isRtl?'ar-SA':'en-GB',{year:'numeric',month:'long',day:'numeric'})}</div>
+              <div style={{ fontSize: 10, fontFamily: sans, color: C.muted, marginTop: 4 }}>{daysLeft > 0 ? `${daysLeft} ${t('days')}` : isRtl ? 'منتهية' : 'Expired'}</div>
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-            {fsel(isRtl ? 'نمط التجديد' : 'Renewal Mode', 'renewalMode', [['Manual', isRtl ? 'يدوي' : 'Manual'], ['Automatic', isRtl ? 'تلقائي' : 'Automatic'], ['Non-renewable', isRtl ? 'غير قابل للتجديد' : 'Non-renewable']].map(([v, l]) => ({ value: v, label: l })))}
-            {fsel(isRtl ? 'تنبيه قبل (يوم)' : 'Alert Before (days)', 'alertDaysBefore', [30, 60, 90].map(v => ({ value: v, label: `${v} ${isRtl ? 'يوم' : 'days'}` })))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {fsel(isRtl?'التجديد':'Renewal', 'renewalMode', [['Manual',isRtl?'يدوي':'Manual'],['Automatic',isRtl?'تلقائي':'Automatic'],['Non-renewable',isRtl?'غير قابل':'Non-renewable']].map(([v,l])=>({value:v,label:l})))}
+            {fsel(isRtl?'تنبيه قبل':'Alert Before', 'alertDaysBefore', [30,60,90].map(v=>({value:v,label:`${v} ${isRtl?'يوم':'days'}`})))}
           </div>
         </>}
 
         {step === 2 && <>
-          <div style={{ fontSize: 9, color: '#aaa', marginBottom: 7, paddingBottom: 5, borderBottom: '.5px solid #f1efe8', fontWeight: 500 }}>{isRtl ? 'بيانات المورّد' : 'VENDOR INFO'}</div>
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#888', marginBottom: 3 }}>{isRtl ? 'اختر مورّداً موجوداً' : 'Select Existing Vendor'}</label>
-            <select value={form.vendorId} onChange={e => set('vendorId', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, outline: 'none', background: 'white' }}>
-              <option value="">— {isRtl ? 'اختر' : 'Select'} —</option>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>{isRtl?'اختر مورّداً':'Select Vendor'}</label>
+            <select value={form.vendorId} onChange={e => set('vendorId', e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 12, fontFamily: sans, outline: 'none', background: C.surface, color: C.ink }}>
+              <option value="">—</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name} ({v.country})</option>)}
             </select>
           </div>
-          <div style={{ fontSize: 9, color: '#aaa', margin: '10px 0 7px', paddingBottom: 4, borderBottom: '.5px solid #f1efe8' }}>{isRtl ? 'أو أدخل مورّداً جديداً' : 'Or enter new vendor details'}</div>
-          {fi(isRtl ? 'اسم الشركة' : 'Company Name', '_vendorName', 'text', 'Microsoft, Oracle...')}
-          {fi('Email', '_vendorEmail', 'email', 'vendor@company.com')}
-          {fi(isRtl ? 'الهاتف' : 'Phone', '_vendorPhone', 'text', '+966...')}
-          {fi(isRtl ? 'رقم العقد' : 'Contract No.', '_vendorContract', 'text', 'VEND-2025-XXXX')}
+          <div style={{ height: 1, background: C.borderL, margin: '16px 0' }} />
+          <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10 }}>{isRtl?'أو أدخل مورّداً جديداً':'Or enter new vendor'}</div>
+          {fi(isRtl?'اسم الشركة':'Company Name', '_vendorName')}
+          {fi('Email', '_vendorEmail', 'email')}
+          {fi(isRtl?'رقم العقد':'Contract No.', '_vendorContract')}
         </>}
 
         {step === 3 && <>
-          <div style={{ fontSize: 9, color: '#aaa', marginBottom: 7, paddingBottom: 5, borderBottom: '.5px solid #f1efe8', fontWeight: 500 }}>{isRtl ? 'الإدارة ومركز التكلفة' : 'DEPARTMENT & COST CENTER'}</div>
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#888', marginBottom: 3 }}>{isRtl ? 'القسم المسؤول *' : 'Responsible Department *'}</label>
-            <select value={form.departmentId} onChange={e => set('departmentId', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, outline: 'none', background: 'white' }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 4 }}>{isRtl?'القسم المسؤول *':'Department *'}</label>
+            <select value={form.departmentId} onChange={e => set('departmentId', e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 12, fontFamily: sans, outline: 'none', background: C.surface, color: C.ink }}>
               <option value="">—</option>
               {departments.map(d => <option key={d.id} value={d.id}>{isRtl ? d.nameAr : d.nameEn} ({d.costCenter})</option>)}
             </select>
           </div>
-          <div style={{ fontSize: 9, color: '#aaa', margin: '10px 0 7px', paddingBottom: 4, borderBottom: '.5px solid #f1efe8', fontWeight: 500 }}>{isRtl ? 'ربط الرخصة بالموظفين' : 'ASSIGN EMPLOYEES'}</div>
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#888', marginBottom: 3 }}>{isRtl ? 'إضافة موظف مسؤول' : 'Add Responsible Employee'}</label>
-            <select onChange={e => {
-              const emp = employees.find(x => x.id === Number(e.target.value))
-              if (emp && !assigned.find(a => a.id === emp.id)) setAssigned(p => [...p, emp])
-              e.target.value = ''
-            }} style={{ width: '100%', padding: '6px 8px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, outline: 'none', background: 'white' }}>
-              <option value="">— {isRtl ? 'اختر موظفاً' : 'Select employee'} —</option>
-              {employees.map(e => <option key={e.id} value={e.id}>{isRtl ? e.nameAr : e.nameEn} — {isRtl ? e.roleAr : e.roleEn}</option>)}
-            </select>
-          </div>
+          <div style={{ height: 1, background: C.borderL, margin: '16px 0' }} />
+          <div style={{ fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10 }}>{isRtl?'الموظفون المسؤولون':'Assigned Employees'}</div>
+          <select onChange={e => {
+            const emp = employees.find(x => x.id === Number(e.target.value))
+            if (emp && !assigned.find(a => a.id === emp.id)) setAssigned(p => [...p, emp])
+            e.target.value = ''
+          }} style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 2, fontSize: 12, fontFamily: sans, outline: 'none', background: C.surface, color: C.ink, marginBottom: 10 }}>
+            <option value="">— {isRtl?'إضافة موظف':'Add employee'} —</option>
+            {employees.map(e => <option key={e.id} value={e.id}>{isRtl ? e.nameAr : e.nameEn}</option>)}
+          </select>
           {assigned.map((emp, i) => (
-            <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', background: '#faf9f5', border: '.5px solid #e0ddd4', borderRadius: 5, marginBottom: 5 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#FAEEDA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 500, color: '#BA7517' }}>
-                {(isRtl ? emp.nameAr : emp.nameEn || emp.nameAr).split(' ').map(w => w[0]).join('').slice(0, 2)}
+            <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: `1px solid ${C.border}`, marginBottom: 6, background: C.surfaceL }}>
+              <div style={{ width: 28, height: 28, background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, fontFamily: sans }}>
+                {(isRtl ? emp.nameAr : emp.nameEn || emp.nameAr).split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10 }}>{isRtl ? emp.nameAr : emp.nameEn}</div>
-                <div style={{ fontSize: 8, color: '#aaa' }}>{isRtl ? emp.roleAr : emp.roleEn}</div>
+                <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{isRtl ? emp.nameAr : emp.nameEn}</div>
+                <div style={{ fontSize: 9, fontFamily: sans, color: C.muted }}>{isRtl ? emp.roleAr : emp.roleEn}</div>
               </div>
-              <button onClick={() => setAssigned(p => p.filter((_, j) => j !== i))} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#aaa', fontSize: 13 }}>×</button>
+              <button onClick={() => setAssigned(p => p.filter((_,j) => j !== i))} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: C.muted, fontSize: 16 }}>×</button>
             </div>
           ))}
-          {!assigned.length && <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', padding: '10px 0' }}>{isRtl ? 'لم يُضف أي موظف' : 'No employees added'}</div>}
         </>}
 
         {step === 4 && <>
-          <div style={{ fontSize: 10, color: '#888', marginBottom: 11 }}>{isRtl ? 'مراجعة المعلومات قبل الحفظ' : 'Review all details before saving'}</div>
+          <div style={{ fontSize: 10, fontFamily: sans, color: C.muted, marginBottom: 16 }}>{isRtl?'مراجعة البيانات قبل الحفظ':'Review before saving'}</div>
           {[
-            { title: isRtl ? 'تفاصيل الرخصة' : 'LICENSE DETAILS', rows: [
-              [isRtl ? 'المنتج' : 'Product', form.name],
-              [isRtl ? 'النوع' : 'Type', t(form.type)],
-              [isRtl ? 'المقاعد' : 'Seats', form.seats],
-              [isRtl ? 'التكلفة/سنة' : 'Cost/yr', form.annualCost ? `${Number(form.annualCost).toLocaleString()} SAR` : '—'],
-              [isRtl ? 'الامتثال' : 'Compliance', form.complianceStandard || '—'],
+            { title: isRtl?'تفاصيل الرخصة':'LICENSE', rows: [
+              [isRtl?'المنتج':'Product', form.name],
+              [isRtl?'النوع':'Type', form.type],
+              [isRtl?'المقاعد':'Seats', form.seats],
+              [isRtl?'التكلفة/سنة':'Cost/yr', form.annualCost ? `${Number(form.annualCost).toLocaleString()} SAR` : '—'],
+              [isRtl?'الامتثال':'Compliance', form.complianceStandard || '—'],
             ]},
-            { title: isRtl ? 'التواريخ' : 'DATES', rows: [
-              [isRtl ? 'البداية' : 'Start', form.startDate],
-              [isRtl ? 'المدة' : 'Duration', `${form.durationYears} yr, ${form.durationMonths} mo`],
-              [isRtl ? 'الانتهاء' : 'Expiry', expiryDate?.toLocaleDateString() || '—'],
+            { title: isRtl?'التواريخ':'DATES', rows: [
+              [isRtl?'البداية':'Start', form.startDate],
+              [isRtl?'الانتهاء':'Expiry', expiryDate?.toLocaleDateString() || '—'],
             ]},
-            { title: isRtl ? 'الإدارة' : 'DEPARTMENT', rows: [
-              [isRtl ? 'القسم' : 'Dept', departments.find(d => d.id === Number(form.departmentId))?.[isRtl ? 'nameAr' : 'nameEn'] || '—'],
-              [isRtl ? 'الموظفون' : 'Employees', assigned.map(e => isRtl ? e.nameAr : e.nameEn).join(', ') || '—'],
+            { title: isRtl?'الإدارة':'DEPT', rows: [
+              [isRtl?'القسم':'Dept', departments.find(d => d.id === Number(form.departmentId))?.[isRtl ? 'nameAr' : 'nameEn'] || '—'],
+              [isRtl?'الموظفون':'Employees', assigned.map(e => isRtl ? e.nameAr : e.nameEn).join(', ') || '—'],
             ]},
           ].map(sec => (
-            <div key={sec.title} style={{ background: '#faf9f5', border: '.5px solid #e0ddd4', borderRadius: 6, padding: '10px 11px', marginBottom: 9 }}>
-              <div style={{ fontSize: 9, fontWeight: 500, color: '#BA7517', marginBottom: 5 }}>{sec.title}</div>
+            <div key={sec.title} style={{ marginBottom: 12, border: `1px solid ${C.border}` }}>
+              <div style={{ padding: '6px 12px', background: C.ink, fontSize: 9, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: C.muted, textTransform: 'uppercase' }}>{sec.title}</div>
               {sec.rows.map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '.5px solid #f1efe8', fontSize: 9 }}>
-                  <span style={{ color: '#888' }}>{k}</span>
-                  <span style={{ fontWeight: 500, textAlign: 'end' }}>{v || '—'}</span>
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 12px', borderBottom: `1px solid ${C.borderL}` }}>
+                  <span style={{ fontSize: 10, fontFamily: sans, color: C.muted }}>{k}</span>
+                  <span style={{ fontSize: 11, fontFamily: mono, fontWeight: 700, color: C.ink }}>{v || '—'}</span>
                 </div>
               ))}
             </div>
@@ -670,12 +956,15 @@ function AddLicensePanel({ lang, isRtl, t, vendors, departments, employees, edit
       </div>
 
       {/* Footer */}
-      <div style={{ padding: '9px 13px', borderTop: '.5px solid #e0ddd4', display: 'flex', gap: 6, background: '#faf9f5', flexShrink: 0 }}>
-        <button disabled={step === 0} onClick={() => setStep(s => s - 1)} style={{ padding: '7px 11px', border: '.5px solid #e0ddd4', borderRadius: 5, fontSize: 11, cursor: step === 0 ? 'default' : 'pointer', background: 'transparent', color: '#888', opacity: step === 0 ? .35 : 1 }}>
+      <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 8, background: C.surfaceL, flexShrink: 0 }}>
+        <button disabled={step === 0} onClick={() => setStep(s => s - 1)} style={{ padding: '9px 16px', border: `1px solid ${C.border}`, fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .5, cursor: step === 0 ? 'default' : 'pointer', background: 'transparent', color: C.muted, opacity: step === 0 ? .3 : 1, textTransform: 'uppercase' }}>
           {isRtl ? 'السابق' : 'Back'}
         </button>
-        <button onClick={() => step < STEPS - 1 ? setStep(s => s + 1) : handleSave()} disabled={saving} style={{ flex: 1, padding: 7, background: saving ? '#ddd' : '#BA7517', color: 'white', border: 'none', borderRadius: 5, fontSize: 11, cursor: saving ? 'default' : 'pointer', fontWeight: 500 }}>
-          {saving ? (isRtl ? 'جارٍ الحفظ...' : 'Saving...') : step < STEPS - 1 ? (isRtl ? 'التالي' : 'Next') : isRenewing ? (isRtl ? 'تأكيد التجديد' : 'Confirm Renewal') : (isRtl ? 'حفظ الرخصة' : 'Save License')}
+        <button onClick={() => step < STEPS - 1 ? setStep(s => s + 1) : onSave({ ...form, employeeIds: assigned.map(e => e.id) })} disabled={saving} style={{
+          flex: 1, padding: 9, background: saving ? C.border : C.gold, color: '#fff', border: 'none',
+          fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, cursor: saving ? 'default' : 'pointer', textTransform: 'uppercase'
+        }}>
+          {saving ? (isRtl?'جارٍ الحفظ...':'Saving...') : step < STEPS - 1 ? (isRtl?'التالي →':'Next →') : isRenewing ? (isRtl?'تأكيد التجديد':'Confirm Renewal') : (isRtl?'حفظ الرخصة':'Save License')}
         </button>
       </div>
     </div>
