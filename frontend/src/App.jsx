@@ -7,6 +7,13 @@ import {
 } from './services/api'
 import './index.css'
 
+// Font injection
+const fontStyle = document.createElement('link')
+fontStyle.rel = 'stylesheet'
+fontStyle.href = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Amiri:wght@400;700&display=swap'
+document.head.appendChild(fontStyle)
+
+
 /* ─── TOKENS ────────────────────────────────────────────────── */
 const C = {
   ink:      '#1A3A2A',
@@ -31,9 +38,9 @@ const C = {
   blueL:    '#DBEAFE',
 }
 
-const font = `'Georgia', 'Times New Roman', serif`
+const font = `'Amiri', 'Scheherazade New', 'Times New Roman', serif`
 const mono = `'Courier New', monospace`
-const sans = `'Helvetica Neue', Helvetica, Arial, sans-serif`
+const sans = `'Tajawal', 'Segoe UI', Tahoma, sans-serif`
 
 /* ─── TRANSLATIONS ───────────────────────────────────────────── */
 const T = {
@@ -242,14 +249,23 @@ export default function App() {
       {/* ── SIDEBAR ── */}
       <aside style={{ width: 220, flexShrink: 0, background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Brand */}
-        <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${C.ink3}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 32, height: 32, background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-            </div>
+        <div style={{ padding: '18px 16px 16px', borderBottom: `1px solid ${C.ink3}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Darah emblem */}
+            <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+              <rect width="100" height="100" rx="4" fill={C.gold}/>
+              <path d="M50 16 L50 80" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+              <path d="M50 28 Q42 20 34 14" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none"/>
+              <path d="M50 28 Q58 20 66 14" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none"/>
+              <path d="M50 40 Q39 33 28 28" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <path d="M50 40 Q61 33 72 28" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <path d="M50 52 Q36 46 24 44" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
+              <path d="M50 52 Q64 46 76 44" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
+              <line x1="28" y1="82" x2="72" y2="82" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+            </svg>
             <div>
-              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, color: '#FAF6F0', letterSpacing: .3 }}>{t('org')}</div>
-              <div style={{ fontSize: 9, color: C.muted, letterSpacing: .5, marginTop: 1 }}>LMS PLATFORM</div>
+              <div style={{ fontSize: 11, fontFamily: font, fontWeight: 700, color: '#FAF6F0', lineHeight: 1.4 }}>{t('org')}</div>
+              <div style={{ fontSize: 8, color: '#8BAF97', letterSpacing: 1, marginTop: 2, fontFamily: sans, textTransform: 'uppercase' }}>نظام إدارة الرخص</div>
             </div>
           </div>
         </div>
@@ -263,7 +279,7 @@ export default function App() {
                 letterSpacing: .5, cursor: 'pointer', border: 'none', textTransform: 'uppercase',
                 background: lang === l ? C.gold : 'transparent',
                 color: lang === l ? '#fff' : C.muted, transition: 'all .2s'
-              }}>{l === 'ar' ? 'عربي' : 'EN'}</button>
+              }}>{l === 'ar' ? 'ع' : 'e'}</button>
             ))}
           </div>
         </div>
@@ -290,7 +306,7 @@ export default function App() {
               background: view === nav.id ? C.ink2 : 'transparent',
             }}>
               {view === nav.id && <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 3, background: C.gold }} />}
-              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: view === nav.id ? 700 : 400, color: view === nav.id ? '#fff' : C.muted, flex: 1, letterSpacing: .3 }}>{nav.label}</div>
+              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: view === nav.id ? 700 : 400, color: view === nav.id ? '#FAF6F0' : '#B8D4C0', flex: 1, letterSpacing: .3 }}>{nav.label}</div>
               {nav.badge > 0 && <span style={{ background: C.red, color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 2, fontFamily: mono }}>{nav.badge}</span>}
             </div>
           ))}
