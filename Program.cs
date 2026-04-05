@@ -1,9 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using LicenseManagement.API.Data;
 using LicenseManagement.API.Services;
-using Npgsql;
 
-// Fix DateTime UTC issue globally for PostgreSQL
+// Fix DateTime UTC globally
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,13 +32,11 @@ else
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr));
 builder.Services.AddScoped<ILicenseService, LicenseService>();
 
+// Allow ALL origins to fix CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins(
-                "http://localhost:5173", "http://localhost:3000",
-                Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "*")
-            .AllowAnyHeader().AllowAnyMethod()
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()
     );
 });
 
@@ -70,7 +67,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseCors("AllowFrontend");
+app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => new { status = "ok", time = DateTime.UtcNow });
