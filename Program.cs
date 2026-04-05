@@ -6,6 +6,7 @@ using LicenseManagement.API.Services;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -13,6 +14,7 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "License Management API", Version = "v1" });
 });
 
+// ── Database ──────────────────────────────────────────────────
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DATABASE_URL not found.");
@@ -20,7 +22,7 @@ var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
 string connStr;
 if (databaseUrl.StartsWith("postgresql://") || databaseUrl.StartsWith("postgres://"))
 {
-    var uri = new Uri(databaseUrl);
+    var uri      = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
     connStr = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={Uri.UnescapeDataString(userInfo[1])};SSL Mode=Require;Trust Server Certificate=true";
 }
@@ -32,16 +34,19 @@ else
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connStr));
 builder.Services.AddScoped<ILicenseService, LicenseService>();
 
-// Allow ALL origins to fix CORS
+// ── Email Reminder Background Service ────────────────────────
+builder.Services.AddHostedService<LicenseReminderService>();
+
+// ── CORS ──────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()
-    );
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
 var app = builder.Build();
 
+// ── DB Init & Seed ────────────────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -51,10 +56,10 @@ using (var scope = app.Services.CreateScope())
         if (!db.Departments.Any())
         {
             db.Departments.AddRange(
-                new LicenseManagement.API.Models.Department { NameAr = "تقنية المعلومات", NameEn = "Information Technology", CostCenter = "CC-101", IsActive = true },
-                new LicenseManagement.API.Models.Department { NameAr = "التحول الرقمي", NameEn = "Digital Transformation", CostCenter = "CC-102", IsActive = true },
-                new LicenseManagement.API.Models.Department { NameAr = "مكتب البيانات", NameEn = "Data Office", CostCenter = "CC-103", IsActive = true },
-                new LicenseManagement.API.Models.Department { NameAr = "الموارد البشرية", NameEn = "Human Resources", CostCenter = "CC-201", IsActive = true }
+                new LicenseManagement.API.Models.Department { NameAr = "تقنية المعلومات",  NameEn = "Information Technology", CostCenter = "CC-101", IsActive = true },
+                new LicenseManagement.API.Models.Department { NameAr = "التحول الرقمي",    NameEn = "Digital Transformation",  CostCenter = "CC-102", IsActive = true },
+                new LicenseManagement.API.Models.Department { NameAr = "مكتب البيانات",    NameEn = "Data Office",             CostCenter = "CC-103", IsActive = true },
+                new LicenseManagement.API.Models.Department { NameAr = "الموارد البشرية",  NameEn = "Human Resources",         CostCenter = "CC-201", IsActive = true }
             );
             db.SaveChanges();
         }
@@ -65,6 +70,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// ── Middleware ────────────────────────────────────────────────
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
