@@ -9,15 +9,15 @@ import './index.css'
 
 /* ─── TOKENS ────────────────────────────────────────────────── */
 const C = {
-  ink:      '#0D0F14',
-  ink2:     '#1C2030',
-  ink3:     '#2E3347',
+  ink:      '#1A3A2A',
+  ink2:     '#254D38',
+  ink3:     '#2F6045',
   muted:    '#6B7280',
   subtle:   '#9CA3AF',
-  border:   '#E5E7EB',
-  borderL:  '#F3F4F6',
-  surface:  '#FFFFFF',
-  surfaceL: '#F9FAFB',
+  border:   '#D6CCBE',
+  borderL:  '#EDE7DC',
+  surface:  '#FAF6F0',
+  surfaceL: '#F3EDE4',
   gold:     '#BA7517',
   goldL:    '#F5E6C8',
   goldD:    '#8A5710',
@@ -237,7 +237,7 @@ export default function App() {
   ]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#F4F5F7', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#EDE7DC', overflow: 'hidden' }}>
 
       {/* ── SIDEBAR ── */}
       <aside style={{ width: 220, flexShrink: 0, background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -248,7 +248,7 @@ export default function App() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, color: '#FFFFFF', letterSpacing: .3 }}>{t('org')}</div>
+              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: 700, color: '#FAF6F0', letterSpacing: .3 }}>{t('org')}</div>
               <div style={{ fontSize: 9, color: C.muted, letterSpacing: .5, marginTop: 1 }}>LMS PLATFORM</div>
             </div>
           </div>
@@ -380,7 +380,7 @@ export default function App() {
                         const d = l.daysRemaining
                         const st = getStatus(d)
                         return (
-                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#FAFAFA' }}>
+                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#F5F0E8' }}>
                             <td style={{ padding: '10px 14px' }}>
                               <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
                               <div style={{ fontSize: 9, fontFamily: mono, color: C.subtle, marginTop: 2 }}>{l.type || '—'}</div>
@@ -538,7 +538,7 @@ export default function App() {
                         const d = l.daysRemaining
                         const st = getStatus(d)
                         return (
-                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#FAFAFA' }}>
+                          <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#F5F0E8' }}>
                             <td style={{ padding: '10px 14px' }}>
                               <div style={{ fontSize: 12, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</div>
                               <div style={{ fontSize: 9, fontFamily: mono, color: C.subtle, marginTop: 1 }}>{l.seats} {isRtl ? 'مقعد' : 'seats'}</div>
@@ -671,7 +671,7 @@ export default function App() {
                       const d = l.daysRemaining
                       const st = getStatus(d)
                       return (
-                        <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#FAFAFA' }}>
+                        <tr key={l.id} style={{ borderBottom: `1px solid ${C.borderL}`, background: i % 2 === 0 ? C.surface : '#F5F0E8' }}>
                           <td style={{ padding: '10px 16px', fontSize: 11, fontFamily: sans, fontWeight: 600, color: C.ink }}>{l.name}</td>
                           <td style={{ padding: '10px 16px' }}>
                             <span style={{ fontSize: 9, fontFamily: mono, color: C.muted, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>{l.complianceStandard || 'N/A'}</span>
