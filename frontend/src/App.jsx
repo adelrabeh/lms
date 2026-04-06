@@ -8,6 +8,103 @@ import {
 import './index.css'
 
 // Font injection
+
+// Responsive CSS injection
+const responsiveStyle = document.createElement('style')
+responsiveStyle.textContent = `
+  * { box-sizing: border-box; }
+  :root {
+    --sidebar-w: 220px;
+    --panel-w: 380px;
+  }
+  body { margin: 0; overflow-x: hidden; }
+
+  /* Mobile hamburger */
+  .mob-menu-btn {
+    display: none;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: #1A3A2A;
+    border: none;
+    border-radius: 4px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .mob-menu-btn span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: #FAF6F0;
+    border-radius: 2px;
+    transition: all .2s;
+  }
+
+  /* Sidebar overlay for mobile */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 98;
+  }
+
+  @media (max-width: 1024px) {
+    .kpi-5-grid { grid-template-columns: repeat(3, 1fr) !important; }
+    .chart-2col { grid-template-columns: 1fr !important; }
+    .bottom-3col { grid-template-columns: 1fr !important; }
+    .licenses-4col { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+
+  @media (max-width: 768px) {
+    .mob-menu-btn { display: flex !important; }
+    .sidebar-overlay.open { display: block; }
+
+    .app-sidebar {
+      position: fixed !important;
+      right: -240px !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      z-index: 99 !important;
+      transition: right .25s ease !important;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.3) !important;
+    }
+    .app-sidebar.open { right: 0 !important; }
+
+    .app-main { margin-right: 0 !important; width: 100% !important; }
+
+    .kpi-5-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .chart-2col { grid-template-columns: 1fr !important; }
+    .bottom-3col { grid-template-columns: 1fr !important; }
+
+    .dash-table-wrap { overflow-x: auto; }
+
+    .add-panel {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      z-index: 200 !important;
+      overflow-y: auto !important;
+    }
+
+    .topbar-sub { display: none !important; }
+    .filters-row { flex-wrap: wrap !important; gap: 6px !important; }
+  }
+
+  @media (max-width: 480px) {
+    .kpi-5-grid { grid-template-columns: 1fr 1fr !important; }
+    .content-pad { padding: 12px !important; }
+    .tbl-hide-sm { display: none !important; }
+  }
+`
+document.head.appendChild(responsiveStyle)
+
 const fontStyle = document.createElement('link')
 fontStyle.rel = 'stylesheet'
 fontStyle.href = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Amiri:wght@400;700&display=swap'
@@ -207,6 +304,7 @@ export default function App() {
   const [editingId, setEditingId] = useState(null)
   const [renewingLicense, setRenewingLicense] = useState(null)
   const [editingLicense, setEditingLicense] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const t = k => T[lang][k] || k
   const isRtl = lang === 'ar'
   const qc = useQueryClient()
@@ -266,10 +364,18 @@ export default function App() {
   ]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#EDE7DC', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#EDE7DC', overflow: 'hidden', position: 'relative' }}>
+
+      {/* Mobile overlay */}
+      <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+
+      {/* Mobile hamburger */}
+      <button className="mob-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="القائمة">
+        <span /><span /><span />
+      </button>
 
       {/* ── SIDEBAR ── */}
-      <aside style={{ width: 220, flexShrink: 0, background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <aside className={`app-sidebar ${sidebarOpen ? 'open' : ''}`} style={{ width: 220, flexShrink: 0, background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
         {/* Brand */}
         <div style={{ padding: '18px 16px 16px', borderBottom: `1px solid ${C.ink3}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -311,7 +417,7 @@ export default function App() {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
           {navItems.map(nav => (
-            <div key={nav.id} onClick={() => setView(nav.id)} style={{
+            <div key={nav.id} onClick={() => { setView(nav.id); setSidebarOpen(false) }} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
               cursor: 'pointer', position: 'relative', transition: 'background .15s',
               background: view === nav.id ? C.ink2 : 'transparent',
@@ -330,7 +436,7 @@ export default function App() {
       </aside>
 
       {/* ── MAIN ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         {/* Topbar */}
         <header style={{ height: 52, background: C.surface, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0 }}>
@@ -338,7 +444,7 @@ export default function App() {
             {navItems.find(n => n.id === view)?.label}
           </div>
           <div style={{ width: 1, height: 16, background: C.border }} />
-          <div style={{ fontSize: 10, fontFamily: mono, color: C.subtle }}>
+          <div className="topbar-sub" style={{ fontSize: 10, fontFamily: mono, color: C.subtle }}>
             {isRtl ? 'دارة الملك عبدالعزيز — إدارة التحول الرقمي' : 'King Abdulaziz Foundation — Digital Transformation'}
           </div>
           <div style={{ flex: 1 }} />
@@ -354,7 +460,7 @@ export default function App() {
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <main className="content-pad" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
 
           {/* ══ DASHBOARD ══ */}
           {view === 'dashboard' && (
@@ -376,7 +482,7 @@ export default function App() {
           {view === 'licenses' && (
             <>
               {/* Filters */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: C.muted, textTransform: 'uppercase', marginInlineEnd: 4 }}>{isRtl ? 'تصفية:' : 'Filter:'}</div>
                 {['all', 'Security', 'Software', 'Maintenance', 'Cloud', 'Domain'].map(tp => (
                   <button key={tp} onClick={() => setFilterType(tp)} style={{
@@ -391,7 +497,7 @@ export default function App() {
                 <div style={{ fontSize: 11, fontFamily: mono, color: C.muted }}>{licenses.length} {isRtl ? 'رخصة' : 'licenses'}</div>
               </div>
 
-              <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, overflowX: 'auto' }}>
                 {licLoading ? (
                   <div style={{ padding: 40, textAlign: 'center', fontSize: 11, fontFamily: sans, color: C.subtle }}>Loading...</div>
                 ) : (
@@ -464,7 +570,7 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, overflowX: 'auto' }}>
                 <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, background: C.surfaceL }}>
                   <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'قائمة التنبيهات' : 'Alert Register'}</div>
                 </div>
@@ -526,7 +632,7 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, overflowX: 'auto' }}>
                 <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, background: C.surfaceL }}>
                   <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'تفاصيل الامتثال' : 'Compliance Detail'}</div>
                 </div>
@@ -606,6 +712,7 @@ export default function App() {
 
       {/* ── PANEL ── */}
       {panelOpen && (
+        <div className="add-panel" style={{ display: 'contents' }}>
         <AddLicensePanel
           lang={lang} isRtl={isRtl} t={t}
           vendors={vendors} departments={departments} employees={employees}
@@ -773,7 +880,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* KPI ROW */}
       <SH title={isRtl ? 'مؤشرات الأداء الرئيسية' : 'Key Performance Indicators'} count={5} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 22 }}>
+      <div className="kpi-5-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 22 }}>
         <KPI label={isRtl ? 'إجمالي الرخص' : 'Total Licenses'} value={totalLic} accent={C.ink} trendUp={true} trendVal={12} target={isRtl ? 'هدف: 70' : 'Target: 70'} />
         <KPI label={isRtl ? 'رخص حرجة' : 'Critical'} value={critical.length} accent={C.red} trendUp={false} trendVal={100} target={isRtl ? 'هدف: 0' : 'Target: 0'} />
         <KPI label={isRtl ? 'نسبة الامتثال' : 'Compliance'} value={`${compliance}%`} accent={compliance >= 80 ? C.green : C.amber} trendUp={compliance >= 80} trendVal={5} target={isRtl ? 'هدف: 100%' : 'Target: 100%'} />
@@ -783,7 +890,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* TREND + TYPE ROW */}
       <SH title={isRtl ? 'تحليل الاتجاهات' : 'Trend Analysis'} />
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 22 }}>
+      <div className="chart-2col" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 22 }}>
 
         <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
           <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -822,8 +929,8 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* CRITICAL TABLE */}
       <SH title={isRtl ? 'الرخص الحرجة' : 'Critical Licenses'} count={critical.length} action={isRtl ? 'عرض الكل' : 'View All'} onAction={() => setView('alerts')} />
-      <div style={{ background: '#fff', border: `1px solid ${C.border}`, marginBottom: 22 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="dash-table-wrap" style={{ background: '#fff', border: `1px solid ${C.border}`, marginBottom: 22, overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: C.ink }}>
               {[isRtl?'اسم الرخصة':'License', isRtl?'المورّد':'Vendor', isRtl?'القسم':'Dept', isRtl?'النوع':'Type', isRtl?'تاريخ الانتهاء':'Expiry', isRtl?'الأيام المتبقية':'Days Left', isRtl?'الحالة':'Status', ''].map((h,i) => (
@@ -876,7 +983,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
       </div>
 
       {/* BOTTOM ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+      <div className="bottom-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
 
         {/* Compliance */}
         <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
