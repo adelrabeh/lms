@@ -6,104 +6,9 @@ import {
   createLicense, updateLicense, deleteLicense
 } from './services/api'
 import './index.css'
+import './responsive.css'
 
 // Font injection
-
-// Responsive CSS injection
-const responsiveStyle = document.createElement('style')
-responsiveStyle.textContent = `
-  * { box-sizing: border-box; }
-  :root {
-    --sidebar-w: 220px;
-    --panel-w: 380px;
-  }
-  body { margin: 0; overflow-x: hidden; }
-
-  /* Mobile hamburger */
-  .mob-menu-btn {
-    display: none;
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 1000;
-    background: #1A3A2A;
-    border: none;
-    border-radius: 4px;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-  }
-  .mob-menu-btn span {
-    display: block;
-    width: 20px;
-    height: 2px;
-    background: #FAF6F0;
-    border-radius: 2px;
-    transition: all .2s;
-  }
-
-  /* Sidebar overlay for mobile */
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 98;
-  }
-
-  @media (max-width: 1024px) {
-    .kpi-5-grid { grid-template-columns: repeat(3, 1fr) !important; }
-    .chart-2col { grid-template-columns: 1fr !important; }
-    .bottom-3col { grid-template-columns: 1fr !important; }
-    .licenses-4col { grid-template-columns: repeat(2, 1fr) !important; }
-  }
-
-  @media (max-width: 768px) {
-    .mob-menu-btn { display: flex !important; }
-    .sidebar-overlay.open { display: block; }
-
-    .app-sidebar {
-      position: fixed !important;
-      right: -240px !important;
-      top: 0 !important;
-      bottom: 0 !important;
-      z-index: 99 !important;
-      transition: right .25s ease !important;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.3) !important;
-    }
-    .app-sidebar.open { right: 0 !important; }
-
-    .app-main { margin-right: 0 !important; width: 100% !important; }
-
-    .kpi-5-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    .chart-2col { grid-template-columns: 1fr !important; }
-    .bottom-3col { grid-template-columns: 1fr !important; }
-
-    .dash-table-wrap { overflow-x: auto; }
-
-    .add-panel {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100% !important;
-      z-index: 200 !important;
-      overflow-y: auto !important;
-    }
-
-    .topbar-sub { display: none !important; }
-    .filters-row { flex-wrap: wrap !important; gap: 6px !important; }
-  }
-
-  @media (max-width: 480px) {
-    .kpi-5-grid { grid-template-columns: 1fr 1fr !important; }
-    .content-pad { padding: 12px !important; }
-    .tbl-hide-sm { display: none !important; }
-  }
-`
-document.head.appendChild(responsiveStyle)
 
 const fontStyle = document.createElement('link')
 fontStyle.rel = 'stylesheet'
@@ -369,13 +274,28 @@ export default function App() {
       {/* Mobile overlay */}
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
 
-      {/* Mobile hamburger */}
-      <button className="mob-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="القائمة">
+      {/* Mobile hamburger — fixed top-right in RTL */}
+      <button
+        className="mob-menu-btn"
+        onClick={() => setSidebarOpen(s => !s)}
+        aria-label="القائمة"
+        style={{ right: isRtl ? 'auto' : 12, left: isRtl ? 12 : 'auto' }}
+      >
         <span /><span /><span />
       </button>
 
       {/* ── SIDEBAR ── */}
-      <aside className={`app-sidebar ${sidebarOpen ? 'open' : ''}`} style={{ width: 220, flexShrink: 0, background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+      <aside
+        className={`app-sidebar ${sidebarOpen ? 'open' : ''}`}
+        style={{
+          width: 220,
+          background: C.ink,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
         {/* Brand */}
         <div style={{ padding: '18px 16px 16px', borderBottom: `1px solid ${C.ink3}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -436,7 +356,7 @@ export default function App() {
       </aside>
 
       {/* ── MAIN ── */}
-      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, width: 0 }}>
 
         {/* Topbar */}
         <header style={{ height: 52, background: C.surface, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0 }}>
@@ -460,7 +380,7 @@ export default function App() {
         </header>
 
         {/* Content */}
-        <main className="content-pad" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        <main className="content-pad" style={{ flex: 1, overflowY: 'auto' }}>
 
           {/* ══ DASHBOARD ══ */}
           {view === 'dashboard' && (
@@ -712,7 +632,7 @@ export default function App() {
 
       {/* ── PANEL ── */}
       {panelOpen && (
-        <div className="add-panel" style={{ display: 'contents' }}>
+        <div className="add-panel-wrap">
         <AddLicensePanel
           lang={lang} isRtl={isRtl} t={t}
           vendors={vendors} departments={departments} employees={employees}
@@ -880,7 +800,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* KPI ROW */}
       <SH title={isRtl ? 'مؤشرات الأداء الرئيسية' : 'Key Performance Indicators'} count={5} />
-      <div className="kpi-5-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 22 }}>
+      <div className="kpi-5-grid">
         <KPI label={isRtl ? 'إجمالي الرخص' : 'Total Licenses'} value={totalLic} accent={C.ink} trendUp={true} trendVal={12} target={isRtl ? 'هدف: 70' : 'Target: 70'} />
         <KPI label={isRtl ? 'رخص حرجة' : 'Critical'} value={critical.length} accent={C.red} trendUp={false} trendVal={100} target={isRtl ? 'هدف: 0' : 'Target: 0'} />
         <KPI label={isRtl ? 'نسبة الامتثال' : 'Compliance'} value={`${compliance}%`} accent={compliance >= 80 ? C.green : C.amber} trendUp={compliance >= 80} trendVal={5} target={isRtl ? 'هدف: 100%' : 'Target: 100%'} />
@@ -890,7 +810,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* TREND + TYPE ROW */}
       <SH title={isRtl ? 'تحليل الاتجاهات' : 'Trend Analysis'} />
-      <div className="chart-2col" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 22 }}>
+      <div className="chart-2col">
 
         <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
           <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -983,7 +903,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
       </div>
 
       {/* BOTTOM ROW */}
-      <div className="bottom-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+      <div className="bottom-3col">
 
         {/* Compliance */}
         <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
