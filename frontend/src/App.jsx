@@ -691,6 +691,7 @@ export default function App() {
           onSave={data => editingId ? updateMut.mutate({ id: editingId, data }) : createMut.mutate(data)}
           saving={createMut.isPending || updateMut.isPending}
         />
+        </div>
       )}
     </div>
   )
