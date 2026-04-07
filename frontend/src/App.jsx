@@ -26,8 +26,8 @@ document.head.appendChild(fontStyle)
     .lms-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
     .lms-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:98}
     .lms-overlay.open{display:block}
-    .lms-ham{display:none;position:fixed;top:10px;left:12px;z-index:1000;background:#1A3A2A;border:none;border-radius:4px;width:42px;height:42px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,.35)}
-    .lms-ham span{display:block;width:20px;height:2px;background:#FAF6F0;border-radius:2px}
+    .lms-ham{display:none;position:fixed;top:10px;left:12px;z-index:1000;background:#767564;border:none;border-radius:4px;width:42px;height:42px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+    .lms-ham span{display:block;width:20px;height:2px;background:#faf7f5;border-radius:2px}
     .lms-content{flex:1;overflow-y:auto;padding:20px}
     .kpi5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
     .chart2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:22px}
@@ -80,18 +80,18 @@ document.head.appendChild(fontStyle)
 
 /* ─── TOKENS ────────────────────────────────────────────────── */
 const C = {
-  ink:      '#1A3A2A',
-  ink2:     '#254D38',
-  ink3:     '#2F6045',
+  ink:      '#767564',
+  ink2:     '#8E8D7A',
+  ink3:     '#A5A492',
   muted:    '#6B7280',
   subtle:   '#9CA3AF',
-  border:   '#D6CCBE',
-  borderL:  '#EDE7DC',
-  surface:  '#FAF6F0',
-  surfaceL: '#F3EDE4',
-  gold:     '#BA7517',
-  goldL:    '#F5E6C8',
-  goldD:    '#8A5710',
+  border:   '#e5e0d8',
+  borderL:  '#f5f0eb',
+  surface:  '#faf7f5',
+  surfaceL: '#f0ede6',
+  gold:     '#767564',
+  goldL:    '#f0ede6',
+  goldD:    '#5a5948',
   green:    '#059669',
   greenL:   '#D1FAE5',
   red:      '#DC2626',
@@ -331,7 +331,7 @@ export default function App() {
   ]
 
   return (
-    <div className="lms-app" style={{ direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#EDE7DC' }}>
+    <div className="lms-app" style={{ direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#f5f0eb' }}>
 
       {/* Overlay */}
       <div className={`lms-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
@@ -344,15 +344,15 @@ export default function App() {
       {/* ── SIDEBAR ── */}
       <aside
         className={`lms-sidebar ${sidebarOpen ? 'open' : ''}`}
-        style={{ background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        style={{ background: 'linear-gradient(180deg,#767564 0%,#8E8D7A 60%,#A5A492 100%)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
         {/* Brand */}
         <div style={{ padding: '18px 16px 16px', borderBottom: `1px solid ${C.ink3}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <DarahLogo size={44} />
             <div>
-              <div style={{ fontSize: 11, fontFamily: font, fontWeight: 700, color: '#FAF6F0', lineHeight: 1.4 }}>{t('org')}</div>
-              <div style={{ fontSize: 8, color: '#8BAF97', letterSpacing: 1, marginTop: 2, fontFamily: sans, textTransform: 'uppercase' }}>نظام إدارة الرخص</div>
+              <div style={{ fontSize: 11, fontFamily: font, fontWeight: 700, color: '#faf7f5', lineHeight: 1.4 }}>{t('org')}</div>
+              <div style={{ fontSize: 8, color: '#c4c2b2', letterSpacing: 1, marginTop: 2, fontFamily: sans, textTransform: 'uppercase' }}>نظام إدارة الرخص</div>
             </div>
           </div>
         </div>
@@ -374,7 +374,7 @@ export default function App() {
         {/* Add Button */}
         <div style={{ padding: '4px 16px 12px' }}>
           <button onClick={() => { setPanelOpen(true); setEditingId(null); setRenewingLicense(null) }} style={{
-            width: '100%', padding: '9px 0', background: C.gold, border: 'none', cursor: 'pointer',
+            width: '100%', padding: '9px 0', background: '#5a5948', border: 'none', cursor: 'pointer',
             fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1, color: '#fff',
             textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
           }}>
@@ -390,10 +390,10 @@ export default function App() {
             <div key={nav.id} onClick={() => { setView(nav.id); setSidebarOpen(false) }} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
               cursor: 'pointer', position: 'relative', transition: 'background .15s',
-              background: view === nav.id ? C.ink2 : 'transparent',
+              background: view === nav.id ? 'rgba(255,255,255,0.2)' : 'transparent',
             }}>
-              {view === nav.id && <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 3, background: C.gold }} />}
-              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: view === nav.id ? 700 : 400, color: view === nav.id ? '#FAF6F0' : '#B8D4C0', flex: 1, letterSpacing: .3 }}>{nav.label}</div>
+              {view === nav.id && <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 3, background: 'rgba(255,255,255,0.9)' }} />}
+              <div style={{ fontSize: 11, fontFamily: sans, fontWeight: view === nav.id ? 700 : 400, color: view === nav.id ? '#faf7f5' : '#d4d2c4', flex: 1, letterSpacing: .3 }}>{nav.label}</div>
               {nav.badge > 0 && <span style={{ background: C.red, color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 2, fontFamily: mono }}>{nav.badge}</span>}
             </div>
           ))}
