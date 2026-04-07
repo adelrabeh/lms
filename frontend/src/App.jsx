@@ -21,8 +21,8 @@ document.head.appendChild(fontStyle)
   s.id = 'lms-responsive'
   s.textContent = `
     *{box-sizing:border-box}
-    .lms-app{display:flex;height:100vh;overflow:hidden;position:relative}
-    .lms-sidebar{width:220px;flex-shrink:0;transition:transform .25s ease}
+    .lms-app{display:flex;height:100vh;overflow:hidden;position:relative;width:100%}
+    .lms-sidebar{width:220px;flex-shrink:0;transition:transform .25s ease;overflow:hidden}
     .lms-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
     .lms-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:98}
     .lms-overlay.open{display:block}
@@ -41,10 +41,25 @@ document.head.appendChild(fontStyle)
       .topbar-sub{display:none!important}
     }
     @media(max-width:768px){
+      .lms-app{display:block!important;position:relative!important}
       .lms-ham{display:flex!important}
-      .lms-sidebar{position:fixed!important;top:0!important;bottom:0!important;left:-240px!important;right:auto!important;z-index:99!important;box-shadow:4px 0 24px rgba(0,0,0,.4)!important}
-      .lms-sidebar.open{left:0!important}
-      .lms-main{width:100%!important}
+      .lms-sidebar{
+        position:fixed!important;
+        top:0!important;bottom:0!important;
+        left:0!important;right:auto!important;
+        z-index:99!important;
+        width:260px!important;
+        transform:translateX(-100%)!important;
+        transition:transform .25s ease!important;
+        box-shadow:none!important;
+        flex-shrink:0!important;
+        flex:none!important;
+      }
+      .lms-sidebar.open{
+        transform:translateX(0)!important;
+        box-shadow:4px 0 24px rgba(0,0,0,0.4)!important;
+      }
+      .lms-main{width:100%!important;height:100vh!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
       .kpi5{grid-template-columns:repeat(2,1fr)!important}
       .chart2{grid-template-columns:1fr!important}
       .bot3{grid-template-columns:1fr!important}
