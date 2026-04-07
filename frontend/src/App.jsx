@@ -6,7 +6,6 @@ import {
   createLicense, updateLicense, deleteLicense
 } from './services/api'
 import './index.css'
-import './responsive.css'
 
 // Font injection
 
@@ -14,6 +13,54 @@ const fontStyle = document.createElement('link')
 fontStyle.rel = 'stylesheet'
 fontStyle.href = 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Amiri:wght@400;700&display=swap'
 document.head.appendChild(fontStyle)
+
+// ── Responsive CSS ──────────────────────────────────────────
+;(function(){
+  if (document.getElementById('lms-responsive')) return
+  const s = document.createElement('style')
+  s.id = 'lms-responsive'
+  s.textContent = `
+    *{box-sizing:border-box}
+    .lms-app{display:flex;height:100vh;overflow:hidden;position:relative}
+    .lms-sidebar{width:220px;flex-shrink:0;transition:transform .25s ease}
+    .lms-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+    .lms-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:98}
+    .lms-overlay.open{display:block}
+    .lms-ham{display:none;position:fixed;top:10px;left:12px;z-index:1000;background:#1A3A2A;border:none;border-radius:4px;width:42px;height:42px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+    .lms-ham span{display:block;width:20px;height:2px;background:#FAF6F0;border-radius:2px}
+    .lms-content{flex:1;overflow-y:auto;padding:20px}
+    .kpi5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+    .chart2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:22px}
+    .bot3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .panel-wrap{width:380px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;height:100%}
+    @media(max-width:1024px){
+      .kpi5{grid-template-columns:repeat(3,1fr)!important}
+      .chart2{grid-template-columns:1fr!important}
+      .bot3{grid-template-columns:1fr 1fr!important}
+      .topbar-sub{display:none!important}
+    }
+    @media(max-width:768px){
+      .lms-ham{display:flex!important}
+      .lms-sidebar{position:fixed!important;top:0!important;bottom:0!important;left:-240px!important;right:auto!important;z-index:99!important;box-shadow:4px 0 24px rgba(0,0,0,.4)!important}
+      .lms-sidebar.open{left:0!important}
+      .lms-main{width:100%!important}
+      .kpi5{grid-template-columns:repeat(2,1fr)!important}
+      .chart2{grid-template-columns:1fr!important}
+      .bot3{grid-template-columns:1fr!important}
+      .panel-wrap{position:fixed!important;inset:0!important;width:100%!important;z-index:200!important}
+      .lms-content{padding:12px!important}
+      .topbar-sub{display:none!important}
+      .topbar-date{display:none!important}
+    }
+    @media(max-width:480px){
+      .kpi5{grid-template-columns:1fr 1fr!important}
+      .lms-content{padding:10px!important}
+      .tbl-hide-sm{display:none!important}
+    }
+  `
+  document.head.appendChild(s)
+})()
 
 
 /* ─── TOKENS ────────────────────────────────────────────────── */
@@ -269,32 +316,20 @@ export default function App() {
   ]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#EDE7DC', overflow: 'hidden', position: 'relative' }}>
+    <div className="lms-app" style={{ direction: isRtl ? 'rtl' : 'ltr', fontFamily: sans, background: '#EDE7DC' }}>
 
-      {/* Mobile overlay */}
-      <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+      {/* Overlay */}
+      <div className={`lms-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
 
-      {/* Mobile hamburger — fixed top-right in RTL */}
-      <button
-        className="mob-menu-btn"
-        onClick={() => setSidebarOpen(s => !s)}
-        aria-label="القائمة"
-        style={{ right: isRtl ? 'auto' : 12, left: isRtl ? 12 : 'auto' }}
-      >
+      {/* Hamburger */}
+      <button className="lms-ham" onClick={() => setSidebarOpen(s => !s)} aria-label="القائمة">
         <span /><span /><span />
       </button>
 
       {/* ── SIDEBAR ── */}
       <aside
-        className={`app-sidebar ${sidebarOpen ? 'open' : ''}`}
-        style={{
-          width: 220,
-          background: C.ink,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}
+        className={`lms-sidebar ${sidebarOpen ? 'open' : ''}`}
+        style={{ background: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
         {/* Brand */}
         <div style={{ padding: '18px 16px 16px', borderBottom: `1px solid ${C.ink3}` }}>
@@ -356,7 +391,7 @@ export default function App() {
       </aside>
 
       {/* ── MAIN ── */}
-      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, width: 0 }}>
+      <div className="lms-main">
 
         {/* Topbar */}
         <header style={{ height: 52, background: C.surface, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0 }}>
@@ -364,7 +399,7 @@ export default function App() {
             {navItems.find(n => n.id === view)?.label}
           </div>
           <div style={{ width: 1, height: 16, background: C.border }} />
-          <div className="topbar-sub" style={{ fontSize: 10, fontFamily: mono, color: C.subtle }}>
+          <div className="topbar-sub" style={{ fontSize: 10, fontFamily: mono, color: C.subtle, overflow: 'hidden', whiteSpace: 'nowrap' }}>
             {isRtl ? 'دارة الملك عبدالعزيز — إدارة التحول الرقمي' : 'King Abdulaziz Foundation — Digital Transformation'}
           </div>
           <div style={{ flex: 1 }} />
@@ -374,13 +409,13 @@ export default function App() {
               fontFamily: sans, outline: 'none', width: 200, background: C.surfaceL, color: C.ink
             }} />
           )}
-          <div style={{ fontSize: 10, fontFamily: mono, color: C.subtle, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '4px 10px', borderRadius: 2 }}>
+          <div className="topbar-date" style={{ fontSize: 10, fontFamily: mono, color: C.subtle, background: C.surfaceL, border: `1px solid ${C.border}`, padding: '4px 10px', borderRadius: 2 }}>
             {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </header>
 
         {/* Content */}
-        <main className="content-pad" style={{ flex: 1, overflowY: 'auto' }}>
+        <main className="lms-content">
 
           {/* ══ DASHBOARD ══ */}
           {view === 'dashboard' && (
@@ -417,7 +452,7 @@ export default function App() {
                 <div style={{ fontSize: 11, fontFamily: mono, color: C.muted }}>{licenses.length} {isRtl ? 'رخصة' : 'licenses'}</div>
               </div>
 
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, overflowX: 'auto' }}>
+              <div className="tbl-wrap" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 {licLoading ? (
                   <div style={{ padding: 40, textAlign: 'center', fontSize: 11, fontFamily: sans, color: C.subtle }}>Loading...</div>
                 ) : (
@@ -490,7 +525,7 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, overflowX: 'auto' }}>
+              <div className="tbl-wrap" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, background: C.surfaceL }}>
                   <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'قائمة التنبيهات' : 'Alert Register'}</div>
                 </div>
@@ -552,7 +587,7 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, overflowX: 'auto' }}>
+              <div className="tbl-wrap" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, background: C.surfaceL }}>
                   <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: 1.2, color: C.muted, textTransform: 'uppercase' }}>{isRtl ? 'تفاصيل الامتثال' : 'Compliance Detail'}</div>
                 </div>
@@ -632,7 +667,7 @@ export default function App() {
 
       {/* ── PANEL ── */}
       {panelOpen && (
-        <div className="add-panel-wrap">
+        <div className="panel-wrap" style={{overflow:"hidden"}}>
         <AddLicensePanel
           lang={lang} isRtl={isRtl} t={t}
           vendors={vendors} departments={departments} employees={employees}
@@ -800,7 +835,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* KPI ROW */}
       <SH title={isRtl ? 'مؤشرات الأداء الرئيسية' : 'Key Performance Indicators'} count={5} />
-      <div className="kpi-5-grid">
+      <div className="kpi5">
         <KPI label={isRtl ? 'إجمالي الرخص' : 'Total Licenses'} value={totalLic} accent={C.ink} trendUp={true} trendVal={12} target={isRtl ? 'هدف: 70' : 'Target: 70'} />
         <KPI label={isRtl ? 'رخص حرجة' : 'Critical'} value={critical.length} accent={C.red} trendUp={false} trendVal={100} target={isRtl ? 'هدف: 0' : 'Target: 0'} />
         <KPI label={isRtl ? 'نسبة الامتثال' : 'Compliance'} value={`${compliance}%`} accent={compliance >= 80 ? C.green : C.amber} trendUp={compliance >= 80} trendVal={5} target={isRtl ? 'هدف: 100%' : 'Target: 100%'} />
@@ -810,7 +845,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* TREND + TYPE ROW */}
       <SH title={isRtl ? 'تحليل الاتجاهات' : 'Trend Analysis'} />
-      <div className="chart-2col">
+      <div className="chart2">
 
         <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>
           <div style={{ fontSize: 10, fontFamily: sans, fontWeight: 700, letterSpacing: .8, color: C.muted, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -849,7 +884,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
 
       {/* CRITICAL TABLE */}
       <SH title={isRtl ? 'الرخص الحرجة' : 'Critical Licenses'} count={critical.length} action={isRtl ? 'عرض الكل' : 'View All'} onAction={() => setView('alerts')} />
-      <div className="dash-table-wrap" style={{ background: '#fff', border: `1px solid ${C.border}`, marginBottom: 22, overflowX: 'auto' }}>
+      <div className="tbl-wrap" style={{ background: '#fff', border: `1px solid ${C.border}`, marginBottom: 22 }}>
         <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: C.ink }}>
@@ -903,7 +938,7 @@ function ExecDashboard({ dashboard, licenses, expiring, lang, isRtl, t, onEdit, 
       </div>
 
       {/* BOTTOM ROW */}
-      <div className="bottom-3col">
+      <div className="bot3">
 
         {/* Compliance */}
         <div style={{ background: '#fff', border: `1px solid ${C.border}`, padding: '18px 20px' }}>

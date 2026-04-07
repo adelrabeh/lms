@@ -5,3 +5,150 @@ input, select, textarea { font-family: inherit; }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════
+   LMS RESPONSIVE — دارة الملك عبدالعزيز
+   ═══════════════════════════════════════════════ */
+
+/* ── HAMBURGER ── */
+.mob-menu-btn {
+  display: none;
+  position: fixed;
+  left: 12px;
+  top: 10px;
+  z-index: 1000;
+  background: #1A3A2A;
+  border: none;
+  border-radius: 4px;
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+}
+.mob-menu-btn span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: #FAF6F0;
+  border-radius: 2px;
+}
+
+/* ── OVERLAY ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 98;
+}
+.sidebar-overlay.open { display: block; }
+
+/* ── SIDEBAR ── */
+.app-sidebar {
+  transition: left 0.25s ease;
+}
+
+/* ── GRIDS ── */
+.kpi-5-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.chart-2col {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.bottom-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* ── TABLE ── */
+.dash-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── PANEL ── */
+.add-panel-wrap {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── CONTENT ── */
+.content-pad { padding: 20px; }
+
+/* ── TOPBAR ── */
+.topbar-sub { }
+.topbar-date { }
+
+/* ═══════════════════
+   TABLET ≤ 1024px
+═══════════════════ */
+@media (max-width: 1024px) {
+  .kpi-5-grid   { grid-template-columns: repeat(3, 1fr) !important; }
+  .chart-2col   { grid-template-columns: 1fr !important; }
+  .bottom-3col  { grid-template-columns: 1fr 1fr !important; }
+  .topbar-sub   { display: none !important; }
+  .topbar-date  { display: none !important; }
+}
+
+/* ═══════════════════
+   MOBILE ≤ 768px
+═══════════════════ */
+@media (max-width: 768px) {
+  /* Show hamburger */
+  .mob-menu-btn { display: flex !important; }
+
+  /* Sidebar — drawer from left (RTL app) */
+  .app-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -240px !important;
+    right: auto !important;
+    z-index: 99 !important;
+    transition: left 0.25s ease !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4) !important;
+  }
+  .app-sidebar.open { left: 0 !important; }
+
+  /* Main takes full width */
+  .app-main { width: 100% !important; min-width: 0 !important; }
+
+  /* Grids collapse */
+  .kpi-5-grid  { grid-template-columns: repeat(2, 1fr) !important; }
+  .chart-2col  { grid-template-columns: 1fr !important; }
+  .bottom-3col { grid-template-columns: 1fr !important; }
+
+  /* Panel fullscreen */
+  .add-panel-wrap {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    z-index: 200 !important;
+  }
+
+  /* Spacing */
+  .content-pad { padding: 12px !important; }
+}
+
+/* ═══════════════════
+   SMALL ≤ 480px
+═══════════════════ */
+@media (max-width: 480px) {
+  .kpi-5-grid { grid-template-columns: 1fr 1fr !important; }
+  .content-pad { padding: 10px !important; }
+  .tbl-hide-sm { display: none !important; }
+}
