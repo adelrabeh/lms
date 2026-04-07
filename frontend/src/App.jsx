@@ -364,7 +364,7 @@ export default function App() {
               <button key={l} onClick={() => setLang(l)} style={{
                 flex: 1, padding: '5px 0', fontSize: 10, fontFamily: sans, fontWeight: 700,
                 letterSpacing: .5, cursor: 'pointer', border: 'none', textTransform: 'uppercase',
-                background: lang === l ? C.gold : 'transparent',
+                background: lang === l ? '#5a5948' : 'transparent',
                 color: lang === l ? '#fff' : C.muted, transition: 'all .2s'
               }}>{l === 'ar' ? 'ع' : 'e'}</button>
             ))}
@@ -401,7 +401,7 @@ export default function App() {
 
         {/* Footer */}
         <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.ink3}` }}>
-          <div style={{ fontSize: 9, fontFamily: mono, color: C.ink3 }}>LMS v2.0 · {new Date().toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB')}</div>
+          <div style={{ fontSize: 9, fontFamily: mono, color: 'rgba(255,255,255,0.3)' }}>LMS v2.0 · {new Date().toLocaleDateString(isRtl ? 'ar-SA' : 'en-GB')}</div>
         </div>
       </aside>
 
